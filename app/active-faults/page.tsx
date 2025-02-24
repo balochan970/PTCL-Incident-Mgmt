@@ -1,0 +1,237 @@
+"use client";
+import { useState, useEffect } from 'react';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { db } from '@/lib/firebaseConfig';
+import Link from 'next/link';
+
+interface Fault {
+  id: string;
+  incidentNumber?: string;
+  faultType?: string;
+  domain?: string;
+  equipmentType?: string;
+  exchangeName?: string;
+  status: string;
+  timestamp: any;
+  faultEndTime?: any;
+  nodeA?: string;
+  nodeB?: string;
+  nodes?: {
+    nodeA?: string;
+    nodeB?: string;
+  };
+  fdh?: string;
+  fats?: Array<{ id?: string; value?: string }>;
+  fsps?: Array<{ id?: string; value?: string }>;
+  oltIp?: string;
+  remarks?: string;
+  ticketGenerator?: string;
+  isOutage?: boolean;
+  stakeholders?: string[];
+}
+
+export default function ActiveFaultsPage() {
+  const [activeTab, setActiveTab] = useState<'gpon' | 'switch'>('gpon');
+  const [faults, setFaults] = useState<Fault[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchFaults();
+  }, [activeTab]);
+
+  const fetchFaults = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const collectionName = activeTab === 'gpon' ? 'gponIncidents' : 'incidents';
+      console.log('Fetching from collection:', collectionName);
+
+      const faultsRef = collection(db, collectionName);
+      
+      const q = query(
+        faultsRef,
+        where('status', 'in', [
+          'In Progress',
+          'in progress',
+          'IN PROGRESS',
+          'InProgress',
+          'In-Progress',
+          'Pending',
+          'pending',
+          'PENDING'
+        ])
+      );
+
+      const snapshot = await getDocs(q);
+      console.log('Found active faults:', snapshot.size);
+
+      const faultsData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        const fault: Fault = {
+          id: doc.id,
+          status: data.status,
+          timestamp: data.timestamp,
+          ...data,
+          // For GPON faults, use the value field from fats and fsps arrays
+          nodeA: data.nodes?.nodeA || data.nodeA || '-',
+          nodeB: data.nodes?.nodeB || data.nodeB || '-'
+        };
+        return fault;
+      });
+
+      faultsData.sort((a, b) => {
+        const dateA = a.timestamp?.toDate?.() || new Date(0);
+        const dateB = b.timestamp?.toDate?.() || new Date(0);
+        return dateB.getTime() - dateA.getTime();
+      });
+
+      console.log('Processed faults data:', faultsData);
+      setFaults(faultsData);
+
+    } catch (err) {
+      console.error('Error fetching faults:', err);
+      setError('Failed to load active faults. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return 'N/A';
+    try {
+      const date = timestamp.toDate();
+      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    } catch (error) {
+      return 'Invalid Date';
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#FFF8E8] p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-[#4A4637]">Active Faults</h1>
+          <Link 
+            href="/login" 
+            className="px-4 py-2 bg-[#4A4637] text-white rounded-lg hover:bg-[#635C48] transition-colors"
+          >
+            Back to Login
+          </Link>
+        </div>
+
+        {/* Tab Buttons */}
+        <div className="flex justify-center gap-4 mb-8">
+          <button
+            onClick={() => setActiveTab('gpon')}
+            className={`px-6 py-3 rounded-lg text-lg font-semibold transition-all duration-200 ${
+              activeTab === 'gpon'
+                ? 'bg-[#4A4637] text-white shadow-lg transform scale-105'
+                : 'bg-white text-[#4A4637] border-2 border-[#4A4637] hover:bg-[#4A4637] hover:text-white'
+            }`}
+          >
+            GPON Active Faults
+          </button>
+          <button
+            onClick={() => setActiveTab('switch')}
+            className={`px-6 py-3 rounded-lg text-lg font-semibold transition-all duration-200 ${
+              activeTab === 'switch'
+                ? 'bg-[#4A4637] text-white shadow-lg transform scale-105'
+                : 'bg-white text-[#4A4637] border-2 border-[#4A4637] hover:bg-[#4A4637] hover:text-white'
+            }`}
+          >
+            Switch/Metro Active Faults
+          </button>
+        </div>
+
+        {/* Content Area */}
+        <div className="bg-white rounded-lg shadow-lg border-2 border-[#D4C9A8] overflow-hidden">
+          {loading ? (
+            <div className="p-8 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4A4637] mx-auto"></div>
+              <p className="mt-4 text-[#4A4637]">Loading faults...</p>
+            </div>
+          ) : error ? (
+            <div className="p-8 text-center text-red-600 bg-red-50">
+              {error}
+            </div>
+          ) : faults.length === 0 ? (
+            <div className="p-8 text-center text-[#4A4637]">
+              No active faults found.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-[#4A4637] text-white">
+                    <th className="px-4 py-3 text-left">Ticket #</th>
+                    <th className="px-4 py-3 text-left">Fault Occurred</th>
+                    {activeTab === 'gpon' ? (
+                      <>
+                        <th className="px-4 py-3 text-left">Exchange</th>
+                        <th className="px-4 py-3 text-left">FDH</th>
+                        <th className="px-4 py-3 text-left">FAT</th>
+                        <th className="px-4 py-3 text-left">OLT IP</th>
+                        <th className="px-4 py-3 text-left">F/S/P</th>
+                      </>
+                    ) : (
+                      <>
+                        <th className="px-4 py-3 text-left">Domain</th>
+                        <th className="px-4 py-3 text-left">Exchange</th>
+                        <th className="px-4 py-3 text-left">Fault Type</th>
+                        <th className="px-4 py-3 text-left">Nodes</th>
+                      </>
+                    )}
+                    <th className="px-4 py-3 text-left">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {faults.map((fault) => (
+                    <tr 
+                      key={fault.id}
+                      className="border-b border-[#D4C9A8] hover:bg-[#FFF8E8] transition-colors"
+                    >
+                      <td className="px-4 py-3">{fault.incidentNumber || `TICKET-${fault.id.slice(0, 6)}`}</td>
+                      <td className="px-4 py-3">{formatDate(fault.timestamp)}</td>
+                      {activeTab === 'gpon' ? (
+                        <>
+                          <td className="px-4 py-3">{fault.exchangeName || '-'}</td>
+                          <td className="px-4 py-3">{fault.fdh || '-'}</td>
+                          <td className="px-4 py-3">{fault.fats?.[0]?.value || fault.fats?.[0]?.id || '-'}</td>
+                          <td className="px-4 py-3">{fault.oltIp || '-'}</td>
+                          <td className="px-4 py-3">{fault.fsps?.[0]?.value || fault.fsps?.[0]?.id || '-'}</td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="px-4 py-3">{fault.domain || '-'}</td>
+                          <td className="px-4 py-3">{fault.exchangeName || '-'}</td>
+                          <td className="px-4 py-3">{fault.faultType || '-'}</td>
+                          <td className="px-4 py-3">
+                            {(fault.nodes?.nodeA || fault.nodeA) && (fault.nodes?.nodeB || fault.nodeB)
+                              ? `${fault.nodes?.nodeA || fault.nodeA} ⟶ ${fault.nodes?.nodeB || fault.nodeB}`
+                              : fault.nodes?.nodeA || fault.nodeA || fault.nodes?.nodeB || fault.nodeB || '-'}
+                          </td>
+                        </>
+                      )}
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded-full text-sm ${
+                          fault.status?.toLowerCase() === 'in progress' 
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {fault.status || 'Unknown'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+} 

@@ -5,7 +5,17 @@ import { collection, doc, getDoc, updateDoc, addDoc } from 'firebase/firestore';
 
 export async function POST(req: NextRequest) {  
   try {
-    const { exchangeName, nodes, stakeholders, faultType } = await req.json();
+    const { 
+      exchangeName, 
+      nodes, 
+      stakeholders, 
+      faultType,
+      equipmentType,
+      domain,
+      ticketGenerator,
+      isMultipleFault,
+      outageNodes 
+    } = await req.json();
 
     // Log the data being saved for debugging purposes
     console.log({
@@ -13,6 +23,11 @@ export async function POST(req: NextRequest) {
       nodes,
       stakeholders,
       faultType,
+      equipmentType,
+      domain,
+      ticketGenerator,
+      isMultipleFault,
+      outageNodes,
     });
 
     // Ensure all required fields are provided
@@ -40,15 +55,25 @@ export async function POST(req: NextRequest) {
       throw new Error('Counter document does not exist.');
     }
 
-    // Save the new incident to Firestore with a "Pending" status
+    // Save the new incident to Firestore
     await addDoc(collection(db, 'incidents'), {
       exchangeName,
       nodes,
       stakeholders,
       faultType,
+      equipmentType,
+      domain,
+      ticketGenerator,
+      isMultipleFault: isMultipleFault || false,
       incidentNumber: newIncidentNumber,
-      status: 'Pending', // Adding status as 'Pending'
+      status: 'In Progress',
       timestamp: new Date(),
+      outageNodes: outageNodes || {
+        nodeA: false,
+        nodeB: false,
+        nodeC: false,
+        nodeD: false
+      }
     });
 
     return NextResponse.json({

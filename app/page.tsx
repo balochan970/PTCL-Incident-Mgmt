@@ -1,386 +1,316 @@
-// app/page.tsx
-
 "use client";
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import './styles/globals.css';
 
-import { useState, ChangeEvent, FormEvent } from 'react';
+export default function HomePage() {
+  const router = useRouter();
 
-interface Nodes {
-  nodeA: string;
-  nodeB: string;
-  nodeC?: string;
-  nodeD?: string;
-}
-
-export default function Home() {
-  const [nodes, setNodes] = useState<Nodes>({ nodeA: '', nodeB: '' });
-  const [exchangeName, setExchangeName] = useState<string>('');
-  const [stakeholders, setStakeholders] = useState<string[]>(['']);
-  const [faultType, setFaultType] = useState<string>('');
-  const [phoneNumber, setPhoneNumber] = useState<string>(''); // State for Phone Number
-  const [outageNodes, setOutageNodes] = useState({
-    nodeA: false,
-    nodeB: false,
-    nodeC: false,
-    nodeD: false,
-  });
-  const [incidentOutput, setIncidentOutput] = useState<string | null>(null);
-  const [showExtraNodes, setShowExtraNodes] = useState(false); // Hide Node C and D initially
-  const [domain, setDomain] = useState<string>(''); // State for Domain
-  const [equipmentType, setEquipmentType] = useState<string>(''); // State for Equipment Type
-
-  // WhatsApp API call
-  const sendWhatsAppViaApi = (phoneNumber: string) => {
-    const phone = phoneNumber || "923312524443"; // Use default number if none provided
-    const message = encodeURIComponent(incidentOutput || "Test message");
-
-    // WhatsApp Web URL for messaging
-    const url = `https://web.whatsapp.com/send?phone=${phone}&text=${message}`;
+  const handleLogout = () => {
+    // Clear authentication data
+    localStorage.removeItem('auth');
     
-    // Open WhatsApp Web in a new tab
-    window.open(url, "_blank");
-  };
-
-  // Stakeholder Handlers
-  const handleAddStakeholder = () => {
-    if (stakeholders.length < 10) {
-      setStakeholders([...stakeholders, '']);
-    }
-  };
-
-  const handleRemoveStakeholder = (index: number) => {
-    const updatedStakeholders = stakeholders.filter((_, i) => i !== index);
-    setStakeholders(updatedStakeholders);
-  };
-
-  const handleStakeholderChange = (index: number, e: ChangeEvent<HTMLInputElement>) => {
-    const updatedStakeholders = [...stakeholders];
-    updatedStakeholders[index] = e.target.value;
-    setStakeholders(updatedStakeholders);
-  };
-
-  // Node Handlers
-  const handleNodeChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setNodes({ ...nodes, [e.target.name]: e.target.value });
-  };
-
-  const handleOutageNodeChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const { name, checked } = e.target;
-    setOutageNodes({ ...outageNodes, [name]: checked });
-  };
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault(); // Prevent the form from reloading
-  
-    // Prepare the data for incident creation
-    const data = {
-      exchangeName,
-      nodes,
-      stakeholders,
-      faultType,
-    };
-  
-    try {
-      const response = await fetch('/api/create-incident', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-  
-      const result = await response.json();
-  
-      if (response.ok) {
-        // Incident successfully created
-        let formattedMessage = `***${equipmentType} ${faultType} in ${exchangeName}***\n\n`;
-  
-        const nodeAOutage = outageNodes.nodeA && faultType === 'Outage' ? '(OUTAGE)' : '';
-        const nodeBOutage = outageNodes.nodeB && faultType === 'Outage' ? '(OUTAGE)' : '';
-        const nodeCOutage = outageNodes.nodeC && faultType === 'Outage' ? '(OUTAGE)' : '';
-
-        if (nodes.nodeA && nodes.nodeB) {
-          formattedMessage += `${nodes.nodeA} ------/------ ${nodes.nodeB} ${nodeBOutage}`;
-        }
-        if (nodes.nodeA && nodes.nodeB && nodes.nodeC) {
-          formattedMessage += ` ------/------ ${nodes.nodeC} ${nodeCOutage}`;
-        }
-
-        formattedMessage += `\n\nInformed to ${stakeholders.join(", ")}\n\nTicket # ${result.incidentNumber}`;
-
-        // Update the incident output state
-        setIncidentOutput(formattedMessage);
-
-        // Display "Incident Created" message
-        alert('Incident Created Successfully!');
-        
-        // Clear form fields
-        setExchangeName('');
-        setNodes({ nodeA: '', nodeB: '', nodeC: '', nodeD: '' });
-        setStakeholders(['']);
-        setFaultType('');
-        setOutageNodes({ nodeA: false, nodeB: false, nodeC: false, nodeD: false });
-        setShowExtraNodes(false);
-      } else {
-        console.error('Error:', result.message);
-        alert(`Error: ${result.message}`);
-      }
-    } catch (error) {
-      console.error('Error submitting the form:', error);
-      alert('There was an error submitting the form.');
-    }
+    // Clear the auth cookie with proper attributes
+    document.cookie = 'auth=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0';
+    
+    // Force reload and redirect to login page
+    window.location.href = '/login';
   };
 
   return (
-    <div>
-      <h1>Incident Reporting</h1>
-      <form onSubmit={handleSubmit}>
-        {/* Domain Dropdown */}
-        <label className="form-label">Domain</label>
-        <select
-          value={domain}
-          onChange={(e) => setDomain(e.target.value)}
-          className="form-dropdown"
-          required
-        >
-          <option value="">Select Domain</option>
-          <option value="Switch/Access">Switch/Access</option>
-          <option value="Transport/Transmission">Transport/Transmission</option>
-        </select>
+    <div className="home-container">
+      <div className="static-background">
+        <div className="gradient-overlay"></div>
+      </div>
 
-        {/* Equipment Type Dropdown */}
-        <label className="form-label">Equipment Type</label>
-        <select
-          value={equipmentType}
-          onChange={(e) => setEquipmentType(e.target.value)}
-          className="form-dropdown"
-          required
-        >
-          <option value="">Select Equipment Type</option>
-          {domain === 'Switch/Access' && (
-            <>
-              <option value="UA5000 IPMD">UA5000 IPMD</option>
-              <option value="UA5000 PVMD">UA5000 PVMD</option>
-              <option value="HYBRID ma5600t">HYBRID ma5600t</option>
-              <option value="GPON ma5800">GPON ma5800</option>
-              <option value="MINI MSAG ma5616/ma52aa">MINI MSAG ma5616/ma52aa</option>
-              <option value="MINI OLT ma5608">MINI OLT ma5608</option>
-            </>
-          )}
-          {domain === 'Transport/Transmission' && (
-            <>
-              <option value="OFAN-3">OFAN-3</option>
-              <option value="DWDM">DWDM</option>
-              <option value="NOKIA">NOKIA</option>
-              <option value="PTN">PTN</option>
-              <option value="UFONE BTS">UFONE BTS</option>
-              <option value="ACCESS">ACCESS</option>
-              <option value="ACCESS-PTN">ACCESS-PTN</option>
-              <option value="SPUR">SPUR</option>
-            </>
-          )}
-        </select>
-
-        {/* Exchange Name */}
-        <label>Exchange Name</label>
-        <input
-          type="text"
-          value={exchangeName}
-          onChange={(e) => setExchangeName(e.target.value)}
-          required
-        />
-
-        {/* Fault Type */}
-        <label>Fault Type</label>
-        <select
-          value={faultType}
-          onChange={(e) => setFaultType(e.target.value)}
-          required
-        >
-          <option value="">Select Fault Type</option>
-          <option value="Fiber Break">Fiber Break</option>
-          <option value="Outage">Outage</option>
-          <option value="Corporate Fault">Corporate Fault</option>
-          <option value="MMBB Fault">MMBB Fault</option>
-        </select>
-
-        {/* Node A and Node B */}
-        <div className="node-row">
-          <div>
-            <label>Node A</label>
-            <input
-              type="text"
-              name="nodeA"
-              value={nodes.nodeA}
-              onChange={handleNodeChange}
-              required
-            />
-            {faultType === 'Outage' && (
-              <label>
-                <input
-                  type="checkbox"
-                  name="nodeA"
-                  checked={outageNodes.nodeA}
-                  onChange={handleOutageNodeChange}
-                />
-                Mark as Outage
-              </label>
-            )}
-          </div>
-          <div>
-            <label>Node B</label>
-            <input
-              type="text"
-              name="nodeB"
-              value={nodes.nodeB}
-              onChange={handleNodeChange}
-              required
-            />
-            {faultType === 'Outage' && (
-              <label>
-                <input
-                  type="checkbox"
-                  name="nodeB"
-                  checked={outageNodes.nodeB}
-                  onChange={handleOutageNodeChange}
-                />
-                Mark as Outage
-              </label>
-            )}
-          </div>
+      <div className="content-wrapper">
+        <div className="header-section">
+          <button onClick={handleLogout} className="logout-btn">
+            <span className="logout-icon">🚪</span>
+            Logout
+          </button>
+          <div className="department-name">ROC KTR-2</div>
+          <h1>Incident Management System</h1>
         </div>
 
-        {/* Add Nodes (C and D) */}
-        {showExtraNodes ? (
-          <>
-            <div className="node-row">
-              <div>
-                <label>Node C (Optional)</label>
-                <input
-                  type="text"
-                  name="nodeC"
-                  value={nodes.nodeC}
-                  onChange={handleNodeChange}
-                />
-                {faultType === 'Outage' && (
-                  <label>
-                    <input
-                      type="checkbox"
-                      name="nodeC"
-                      checked={outageNodes.nodeC}
-                      onChange={handleOutageNodeChange}
-                    />
-                    Mark as Outage
-                  </label>
-                )}
-              </div>
-              <div>
-                <label>Node D (Optional)</label>
-                <input
-                  type="text"
-                  name="nodeD"
-                  value={nodes.nodeD}
-                  onChange={handleNodeChange}
-                />
-                {faultType === 'Outage' && (
-                  <label>
-                    <input
-                      type="checkbox"
-                      name="nodeD"
-                      checked={outageNodes.nodeD}
-                      onChange={handleOutageNodeChange}
-                    />
-                    Mark as Outage
-                  </label>
-                )}
-              </div>
+        <div className="cards-container">
+          <Link href="/single-fault" className="card">
+            <div className="card-content">
+              <div className="card-icon">📝</div>
+              <h2>Single Fault</h2>
             </div>
+          </Link>
 
-            {/* Cancel Nodes button */}
-            <button
-              type="button"
-              className="cancel-btn"
-              onClick={() => setShowExtraNodes(false)}
-            >
-              Cancel Nodes
-            </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            className="add-more-btn"
-            onClick={() => setShowExtraNodes(true)}
-          >
-            Add Nodes
-          </button>
-        )}
+          <Link href="/multiple-faults" className="card">
+            <div className="card-content">
+              <div className="card-icon">📊</div>
+              <h2>Multiple Faults</h2>
+            </div>
+          </Link>
 
-        {/* Stakeholders */}
-        <label>Stakeholders</label>
-        {stakeholders.map((stakeholder, index) => (
-          <div key={index} style={{ display: 'flex', alignItems: 'center' }}>
-            <input
-              type="text"
-              value={stakeholder}
-              onChange={(e) => handleStakeholderChange(index, e)}
-              required={index === 0} // First stakeholder is required
-            />
-            {index > 0 && (
-              <button
-                type="button"
-                className="cancel-btn"
-                onClick={() => handleRemoveStakeholder(index)}
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-        ))}
-        {stakeholders.length < 10 && (
-          <button
-            type="button"
-            className="add-more-btn"
-            onClick={handleAddStakeholder}
-          >
-            Add more
-          </button>
-        )}
+          <Link href="/gpon-faults" className="card">
+            <div className="card-content">
+              <div className="card-icon">🔌</div>
+              <h2>GPON Faults</h2>
+            </div>
+          </Link>
 
-        <button type="submit">Submit Incident</button>
-      </form>
+          <Link href="/reports" className="card">
+            <div className="card-content">
+              <div className="card-icon">📈</div>
+              <h2>Reports</h2>
+            </div>
+          </Link>
 
-      {/* Display the incident output after form submission */}
-      {incidentOutput && (
-        <div className="incident-output">
-          <h2>Incident Output</h2>
-          <pre>{incidentOutput}</pre>
-          
-          {/* Copy to Clipboard Button */}
-          <button
-            onClick={() => navigator.clipboard.writeText(incidentOutput)}
-            className="copy-to-clipboard"
-          >
-            Copy to Clipboard
-          </button>
+          <Link href="/gpon-reports" className="card">
+            <div className="card-content">
+              <div className="card-icon">📊</div>
+              <h2>GPON Reports</h2>
+            </div>
+          </Link>
 
-          {/* WhatsApp Options (Phone Number and Send Button) */}
-          <div className="whatsapp-section">
-            <label>Phone Number (International Format)</label>
-            <input
-              type="text"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              placeholder="923312524443" // Without "+" symbol
-            />
+          <Link href="/knowledgebase" className="card">
+            <div className="card-content">
+              <div className="card-icon">📚</div>
+              <h2>KnowledgeBase</h2>
+            </div>
+          </Link>
+        </div>
 
-            <button
-              onClick={() => sendWhatsAppViaApi(phoneNumber)}
-              className="send-whatsapp-btn"
-            >
-              Send to WhatsApp
-            </button>
+        <div className="powered-by">
+          <span className="powered-text">Powered By</span>
+          <div className="contact-info">
+            <p>Taimoor</p>
+            <p>03312524443</p>
+            <p>03138999173</p>
           </div>
         </div>
-      )}
+      </div>
+
+      <style jsx>{`
+        .home-container {
+          min-height: 100vh;
+          background: #0f172a;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 1.5rem;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .static-background {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          top: 0;
+          left: 0;
+        }
+
+        .gradient-overlay {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          background: radial-gradient(circle at top left, rgba(79, 70, 229, 0.1) 0%, transparent 50%),
+                    radial-gradient(circle at bottom right, rgba(236, 72, 153, 0.1) 0%, transparent 50%);
+        }
+
+        .content-wrapper {
+          width: 100%;
+          max-width: 1200px;
+          position: relative;
+          z-index: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .header-section {
+          text-align: center;
+          margin-bottom: 3rem;
+          width: 100%;
+          position: relative;
+        }
+
+        .department-name {
+          font-size: 2.5rem;
+          font-weight: 800;
+          background: linear-gradient(135deg, #4f46e5, #06b6d4);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          margin-bottom: 0.5rem;
+          text-transform: uppercase;
+          letter-spacing: 2px;
+          text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .logout-btn {
+          position: absolute;
+          top: 0;
+          right: 1rem;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          background: rgba(255, 255, 255, 0.1);
+          color: white;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          padding: 0.75rem 1.25rem;
+          border-radius: 0.75rem;
+          cursor: pointer;
+          font-size: 1rem;
+          font-weight: 500;
+          transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+          background: rgba(255, 255, 255, 0.2);
+          transform: translateY(-2px);
+        }
+
+        .logout-icon {
+          font-size: 1.25rem;
+        }
+
+        h1 {
+          font-size: 2rem;
+          color: white;
+          margin: 0;
+          font-weight: 600;
+          opacity: 0.9;
+        }
+
+        .cards-container {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 1.5rem;
+          width: 100%;
+          max-width: 1000px;
+          margin: 0 auto;
+        }
+
+        .card {
+          background: rgba(255, 255, 255, 0.9);
+          border-radius: 1rem;
+          overflow: hidden;
+          text-decoration: none;
+          transition: all 0.3s ease;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
+          background: white;
+        }
+
+        .card-content {
+          padding: 1.5rem;
+          text-align: center;
+        }
+
+        .card-icon {
+          font-size: 2rem;
+          margin-bottom: 1rem;
+        }
+
+        h2 {
+          color: #1e293b;
+          margin: 0;
+          font-size: 1.25rem;
+          font-weight: 600;
+        }
+
+        .powered-by {
+          margin-top: 3rem;
+          position: relative;
+          display: inline-block;
+        }
+
+        .powered-text {
+          color: rgba(255, 255, 255, 0.6);
+          font-size: 0.875rem;
+          cursor: pointer;
+          transition: color 0.3s ease;
+        }
+
+        .powered-text:hover {
+          color: rgba(255, 255, 255, 0.9);
+        }
+
+        .contact-info {
+          position: absolute;
+          bottom: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          background: rgba(15, 23, 42, 0.8);
+          backdrop-filter: blur(8px);
+          padding: 0.75rem 1rem;
+          border-radius: 0.75rem;
+          margin-bottom: 0.5rem;
+          opacity: 0;
+          visibility: hidden;
+          transition: all 0.3s ease;
+          white-space: nowrap;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .powered-by:hover .contact-info {
+          opacity: 1;
+          visibility: visible;
+          transform: translateX(-50%) translateY(-5px);
+        }
+
+        .contact-info p {
+          color: rgba(255, 255, 255, 0.9);
+          margin: 0.25rem 0;
+          font-size: 0.875rem;
+          text-align: center;
+        }
+
+        @media (max-width: 1024px) {
+          .cards-container {
+            grid-template-columns: repeat(2, 1fr);
+            max-width: 700px;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .department-name {
+            font-size: 2rem;
+            margin-top: 3rem;
+          }
+
+          .logout-btn {
+            position: absolute;
+            top: 0;
+            right: 50%;
+            transform: translateX(50%);
+            width: 200px;
+          }
+
+          h1 {
+            font-size: 1.75rem;
+            margin-top: 1rem;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .home-container {
+            padding: 1rem;
+          }
+
+          .cards-container {
+            grid-template-columns: 1fr;
+            max-width: 400px;
+          }
+
+          .card-content {
+            padding: 1.25rem;
+          }
+        }
+      `}</style>
     </div>
   );
 }

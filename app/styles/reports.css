@@ -1,0 +1,692 @@
+.reports-container {
+  padding: 20px;
+  background-color: #FFF8E8;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.title-section {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-width: 250px;
+}
+
+.back-btn {
+  padding: 8px 16px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.back-btn:hover {
+  background-color: #5a6268;
+}
+
+.chart-section {
+  flex: 0 0 auto;
+  width: 200px;
+  background-color: white;
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.mini-chart {
+  position: relative;
+  width: 180px;
+  height: 180px;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.action-btn:hover {
+  background-color: #0056b3;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+.loading-spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-container {
+  text-align: center;
+  padding: 20px;
+}
+
+.controls-section {
+  margin-bottom: 20px;
+}
+
+.time-range-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.custom-range-controls,
+.datetime-inputs,
+.datetime-input-container,
+input[type="datetime-local"] {
+  display: none;
+}
+
+.filters {
+  display: flex;
+  gap: 15px;
+  padding: 15px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  align-items: center;
+}
+
+.search-input {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  min-width: 200px;
+}
+
+.status-filter {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  min-width: 150px;
+}
+
+.btn {
+  padding: 8px 15px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+}
+
+.btn-primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #0056b3;
+}
+
+.btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.icon {
+  font-size: 1.2em;
+}
+
+.reports-container .table-container {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  overflow-x: auto;
+  width: calc(100% + 40px);
+  margin-left: -20px;
+  margin-right: -20px;
+  transform: rotateX(180deg);
+  padding: 0;
+  display: block;
+}
+
+.reports-container table {
+  width: 100%;
+  min-width: calc(1200px + 40px);
+  border-collapse: collapse;
+  font-size: 0.9em;
+  table-layout: fixed;
+  color: #000000;
+  transform: rotateX(180deg);
+  margin: 0;
+  display: table;
+}
+
+th, td {
+  padding: 12px;
+  text-align: left;
+  white-space: normal;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow: visible;
+  text-overflow: unset;
+  color: #000000;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+th {
+  background-color: #f8f9fa;
+  cursor: pointer;
+  user-select: none;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  white-space: normal;
+  word-wrap: break-word;
+  line-height: 1.2;
+  height: auto;
+  min-height: 48px;
+  vertical-align: middle;
+}
+
+/* Column specific widths - for regular reports only */
+.reports-container th:nth-child(1), .reports-container td:nth-child(1) { width: 40px; } /* Selection column */
+.reports-container th:nth-child(2), .reports-container td:nth-child(2) { width: 100px; } /* Ticket # */
+.reports-container th:nth-child(3), .reports-container td:nth-child(3) { width: 180px; } /* Fault Occurred (Date/Time) */
+.reports-container th:nth-child(4), .reports-container td:nth-child(4) { width: 100px; } /* Domain */
+.reports-container th:nth-child(5), .reports-container td:nth-child(5) { width: 150px; } /* Exchange */
+.reports-container th:nth-child(6), .reports-container td:nth-child(6) { width: 100px; } /* Fault Type */
+.reports-container th:nth-child(7), .reports-container td:nth-child(7) { width: 120px; } /* Equipment Type */
+.reports-container th:nth-child(8), .reports-container td:nth-child(8) { width: 200px; } /* Nodes */
+.reports-container th:nth-child(9), .reports-container td:nth-child(9) { width: 150px; } /* Fault End */
+.reports-container th:nth-child(10), .reports-container td:nth-child(10) { width: 100px; } /* Status */
+.reports-container th:nth-child(11), .reports-container td:nth-child(11) { width: 100px; } /* Ticket Closed by */
+.reports-container th:nth-child(12), .reports-container td:nth-child(12) { width: 100px; } /* Total Time */
+.reports-container th:nth-child(13), .reports-container td:nth-child(13) { width: 80px; } /* Actions */
+
+/* Remove any column-specific wrapping overrides */
+.reports-container td:nth-child(8),
+.reports-container td:nth-child(3),
+.reports-container td:nth-child(5),
+.reports-container td:nth-child(9),
+.reports-container td:nth-child(12) {
+  white-space: normal !important;
+  word-wrap: break-word !important;
+  word-break: break-word !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+}
+
+td {
+  border-top: 1px solid #dee2e6;
+  padding: 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+/* Override any existing ellipsis styles */
+td {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  word-wrap: break-word !important;
+  word-break: break-word !important;
+}
+
+/* Remove column-specific width restrictions */
+.reports-container td,
+.gpon-reports-container td {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  word-wrap: break-word !important;
+  word-break: break-word !important;
+  max-width: none !important;
+}
+
+/* Allow nodes column to wrap - for regular reports only */
+.reports-container td:nth-child(8) {
+  white-space: normal;
+  word-wrap: break-word;
+  min-width: 200px;
+}
+
+/* Allow specific columns to wrap - for regular reports only */
+.reports-container td:nth-child(3), /* Fault Occurred */
+.reports-container td:nth-child(5), /* Exchange */
+.reports-container td:nth-child(8), /* Nodes */
+.reports-container td:nth-child(9), /* Fault End */
+.reports-container td:nth-child(12) { /* Total Time */
+  white-space: normal;
+  word-wrap: break-word;
+  min-width: 150px;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  font-weight: 500;
+}
+
+.status-badge.in-progress {
+  background-color: #cce5ff;
+  color: #004085;
+}
+
+.status-badge.completed {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.view-btn {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  background-color: #6c757d;
+  color: white;
+  cursor: pointer;
+  white-space: nowrap;
+  width: auto;
+  min-width: 50px;
+}
+
+.view-btn:hover {
+  background-color: #5a6268;
+}
+
+.status-select {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: inherit;
+  padding: 2px 4px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.status-select:focus {
+  outline: none;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #333;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.detail-row {
+  display: flex;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.detail-row strong {
+  flex: 0 0 150px;
+  color: #666;
+}
+
+.detail-row span {
+  flex: 1;
+  color: #333;
+}
+
+.status-select-modal {
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  cursor: pointer;
+}
+
+.status-select-modal:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.analytics-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 800px;
+  background-color: rgba(255, 255, 255, 0.98);
+  box-shadow: -4px 0 8px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  animation: slideIn 0.3s ease;
+}
+
+.analytics-content {
+  height: 100%;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.analytics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.analytics-header h2 {
+  margin: 0;
+  color: #333;
+  font-size: 1.5rem;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .analytics-overlay {
+    max-width: 100%;
+  }
+
+  .filters {
+    flex-direction: column;
+  }
+
+  .search-input,
+  .status-filter,
+  .time-range {
+    width: 100%;
+  }
+}
+
+.closer-selection {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.closer-select {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+
+.btn-primary {
+  background-color: #007bff;
+  color: white;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background-color: #0056b3;
+}
+
+/* Make text fields and headings bold */
+.form-label, 
+.dropdown-label,
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 800;
+  color: #000000;
+}
+
+/* Make dropdown text black */
+select, 
+option,
+input,
+.form-select,
+.form-input {
+  color: #000000 !important;
+  font-weight: 600;
+}
+
+/* Remove ellipsis from selection and ticket columns */
+th:nth-child(1), 
+td:nth-child(1),
+th:nth-child(2), 
+td:nth-child(2) {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+/* Ensure the table container shows horizontal scroll when needed */
+@media screen and (max-width: 1400px) {
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+.gpon-reports-container {
+  padding: 20px;
+  background-color: #FFF8E8;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.gpon-reports-container .table-container {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin: -20px;
+  padding: 20px;
+  overflow-x: auto;
+  width: calc(100% + 40px);
+}
+
+.gpon-reports-container table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 1200px;
+  table-layout: fixed;
+}
+
+/* Resizable column styles */
+.resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: rgba(0, 0, 0, 0.1);
+  cursor: col-resize;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+th {
+  position: relative;
+}
+
+th:hover .resize-handle {
+  opacity: 1;
+}
+
+.table-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.table-resizing .resize-handle {
+  opacity: 1;
+}
+
+/* Ensure the table maintains its structure during resize */
+.reports-container table,
+.gpon-reports-container table {
+  table-layout: fixed;
+}
+
+/* Preserve existing styles */
+.reports-container th,
+.gpon-reports-container th {
+  position: relative;
+  overflow: visible; /* Allow resize handle to be visible */
+}
+
+/* Column specific widths - for GPON reports */
+.gpon-reports-container th:nth-child(1), .gpon-reports-container td:nth-child(1) { width: 40px; } /* Selection column */
+.gpon-reports-container th:nth-child(2), .gpon-reports-container td:nth-child(2) { width: 120px; } /* Ticket # */
+.gpon-reports-container th:nth-child(3), .gpon-reports-container td:nth-child(3) { width: 180px; } /* Fault Occurred */
+.gpon-reports-container th:nth-child(4), .gpon-reports-container td:nth-child(4) { width: 150px; } /* Exchange */
+.gpon-reports-container th:nth-child(5), .gpon-reports-container td:nth-child(5) { width: 120px; } /* FDH */
+.gpon-reports-container th:nth-child(6), .gpon-reports-container td:nth-child(6) { width: 200px; } /* FATs */
+.gpon-reports-container th:nth-child(7), .gpon-reports-container td:nth-child(7) { width: 120px; } /* OLT IP */
+.gpon-reports-container th:nth-child(8), .gpon-reports-container td:nth-child(8) { width: 120px; } /* F/S/P */
+.gpon-reports-container th:nth-child(9), .gpon-reports-container td:nth-child(9) { width: 180px; } /* Fault End Time */
+.gpon-reports-container th:nth-child(10), .gpon-reports-container td:nth-child(10) { width: 100px; } /* Status */
+.gpon-reports-container th:nth-child(11), .gpon-reports-container td:nth-child(11) { width: 120px; } /* Closed By */
+.gpon-reports-container th:nth-child(12), .gpon-reports-container td:nth-child(12) { width: 100px; } /* Total Time */
+.gpon-reports-container th:nth-child(13), .gpon-reports-container td:nth-child(13) { width: 80px; } /* Actions */
+
+/* Ensure all GPON table cells wrap text properly */
+.gpon-reports-container td,
+.gpon-reports-container th {
+  white-space: normal !important;
+  word-wrap: break-word !important;
+  word-break: break-word !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  line-height: 1.4;
+}
+
+/* Additional styles for better table appearance */
+.reports-container,
+.gpon-reports-container {
+  .table-container {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow-x: auto;
+    width: calc(100% + 40px);
+    margin-left: -20px;
+    margin-right: -20px;
+    transform: rotateX(180deg);
+    padding: 0;
+  }
+
+  table {
+    width: 100%;
+    min-width: 1200px;
+    border-collapse: separate;
+    border-spacing: 0;
+    transform: rotateX(180deg);
+  }
+} 
