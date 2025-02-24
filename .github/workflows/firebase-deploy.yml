@@ -26,4 +26,4 @@ jobs:
       - name: Deploy to Firebase
         env:
           GOOGLE_APPLICATION_CREDENTIALS: $HOME/gcloud-key.json
-        run: firebase deploy --project YOUR_FIREBASE_PROJECT_ID
+        run: firebase deploy --roc-ktr2-incident-management
