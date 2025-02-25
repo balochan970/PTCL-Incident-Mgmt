@@ -4,9 +4,14 @@ import { comparePassword } from './utils/password';
 
 // Authentication event for cross-tab communication
 export const AUTH_STORAGE_KEY = 'auth';
-export const AUTH_COOKIE_NAME = 'auth';
+export const AUTH_COOKIE_NAME = 'auth-session';
 export const AUTH_EVENT = 'ptcl-auth-event';
 export const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
+// Prevent multiple auth operations in quick succession
+let authOperationInProgress = false;
+let lastAuthOperation = 0;
+const AUTH_OPERATION_COOLDOWN = 500; // 500ms cooldown between auth operations
 
 // Interface for authentication data
 export interface AuthData {
@@ -20,52 +25,103 @@ export interface AuthData {
  * Login user with username and password
  */
 export const loginUser = async (username: string, password: string): Promise<AuthData> => {
-  const trimmedUsername = username.trim();
-  
-  // Clear any existing auth data before attempting login
-  clearAuthData();
-
-  const authUsersRef = collection(db, 'auth_users');
-  const q = query(authUsersRef, where('username', '==', trimmedUsername));
-  const querySnapshot = await getDocs(q);
-
-  if (querySnapshot.empty) {
-    throw new Error('Invalid username or password');
+  // Prevent rapid login attempts
+  if (isAuthOperationInProgress()) {
+    console.warn('Login operation already in progress, please wait');
+    throw new Error('Login operation already in progress, please wait');
   }
+  
+  setAuthOperationInProgress(true);
+  
+  try {
+    const trimmedUsername = username.trim();
+    
+    // Clear any existing auth data before attempting login
+    clearAuthData();
 
-  const userDoc = querySnapshot.docs[0];
-  const userData = userDoc.data();
+    const authUsersRef = collection(db, 'auth_users');
+    const q = query(authUsersRef, where('username', '==', trimmedUsername));
+    const querySnapshot = await getDocs(q);
 
-  const isValidPassword = await comparePassword(password, userData.password);
+    if (querySnapshot.empty) {
+      throw new Error('Invalid username or password');
+    }
 
-  if (!isValidPassword) {
-    throw new Error('Invalid username or password');
+    const userDoc = querySnapshot.docs[0];
+    const userData = userDoc.data();
+
+    const isValidPassword = await comparePassword(password, userData.password);
+
+    if (!isValidPassword) {
+      throw new Error('Invalid username or password');
+    }
+
+    const authData: AuthData = {
+      username: userData.username,
+      role: userData.role,
+      isAuthenticated: true,
+      timestamp: new Date().getTime()
+    };
+
+    // Store auth data
+    storeAuthData(authData);
+    
+    // Broadcast auth change to other tabs
+    broadcastAuthChange('login');
+    
+    return authData;
+  } finally {
+    // Release the lock after a short delay
+    setTimeout(() => {
+      setAuthOperationInProgress(false);
+    }, AUTH_OPERATION_COOLDOWN);
   }
-
-  const authData: AuthData = {
-    username: userData.username,
-    role: userData.role,
-    isAuthenticated: true,
-    timestamp: new Date().getTime()
-  };
-
-  // Store auth data
-  storeAuthData(authData);
-  
-  // Broadcast auth change to other tabs
-  broadcastAuthChange('login');
-  
-  return authData;
 };
 
 /**
  * Logout user and clear all auth data
  */
 export const logoutUser = (): void => {
-  clearAuthData();
+  // Prevent rapid logout attempts
+  if (isAuthOperationInProgress()) {
+    console.warn('Logout operation already in progress, please wait');
+    return;
+  }
   
-  // Broadcast auth change to other tabs
-  broadcastAuthChange('logout');
+  setAuthOperationInProgress(true);
+  
+  try {
+    clearAuthData();
+    
+    // Broadcast auth change to other tabs
+    broadcastAuthChange('logout');
+  } finally {
+    // Release the lock after a short delay
+    setTimeout(() => {
+      setAuthOperationInProgress(false);
+    }, AUTH_OPERATION_COOLDOWN);
+  }
+};
+
+/**
+ * Check if an auth operation is in progress
+ */
+const isAuthOperationInProgress = (): boolean => {
+  const now = Date.now();
+  if (authOperationInProgress && now - lastAuthOperation < AUTH_OPERATION_COOLDOWN) {
+    return true;
+  }
+  return false;
+};
+
+/**
+ * Set auth operation in progress
+ */
+const setAuthOperationInProgress = (inProgress: boolean): void => {
+  authOperationInProgress = inProgress;
+  if (inProgress) {
+    lastAuthOperation = Date.now();
+  }
 };
 
 /**
@@ -93,6 +149,7 @@ export const isAuthenticated = (): boolean => {
     
     return true;
   } catch (error) {
+    console.error('Error checking authentication:', error);
     clearAuthData();
     return false;
   }
@@ -108,6 +165,7 @@ export const getAuthData = (): AuthData | null => {
     
     return JSON.parse(authJson);
   } catch (error) {
+    console.error('Error getting auth data:', error);
     return null;
   }
 };
@@ -116,29 +174,41 @@ export const getAuthData = (): AuthData | null => {
  * Store authentication data in storage and cookies
  */
 export const storeAuthData = (authData: AuthData): void => {
-  // Store in sessionStorage (cleared when browser is closed)
-  sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
-  
-  // Set cookie with same expiry (24 hours)
-  document.cookie = `${AUTH_COOKIE_NAME}=${JSON.stringify(authData)}; path=/; max-age=${SESSION_DURATION / 1000}; samesite=strict`;
+  try {
+    // Store in sessionStorage (cleared when browser is closed)
+    sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
+    
+    // Set cookie with same expiry (24 hours)
+    document.cookie = `${AUTH_COOKIE_NAME}=${JSON.stringify(authData)}; path=/; max-age=${SESSION_DURATION / 1000}; samesite=strict`;
+  } catch (error) {
+    console.error('Error storing auth data:', error);
+  }
 };
 
 /**
  * Clear all authentication data
  */
 export const clearAuthData = (): void => {
-  // Clear from localStorage (legacy)
-  localStorage.removeItem(AUTH_STORAGE_KEY);
-  
-  // Clear from sessionStorage
-  sessionStorage.removeItem(AUTH_STORAGE_KEY);
-  sessionStorage.removeItem('fromProtected');
-  
-  // Clear all sessionStorage
-  sessionStorage.clear();
-  
-  // Clear cookie
-  document.cookie = `${AUTH_COOKIE_NAME}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0; domain=${window.location.hostname}`;
+  try {
+    // Clear from localStorage (legacy)
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    
+    // Clear from sessionStorage
+    sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    sessionStorage.removeItem('fromProtected');
+    
+    // Clear all sessionStorage
+    sessionStorage.clear();
+    
+    // Clear cookie
+    document.cookie = `${AUTH_COOKIE_NAME}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0`;
+    
+    // Also try with domain
+    const domain = window.location.hostname;
+    document.cookie = `${AUTH_COOKIE_NAME}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0; domain=${domain}`;
+  } catch (error) {
+    console.error('Error clearing auth data:', error);
+  }
 };
 
 /**
@@ -203,34 +273,49 @@ export const setupAuthListener = (onAuthChange: (action: 'login' | 'logout') => 
  * Check authentication on page load/refresh
  */
 export const checkAuthOnLoad = (): boolean => {
-  // First check if we have auth data in sessionStorage
-  const authInSession = sessionStorage.getItem(AUTH_STORAGE_KEY);
-  
-  // Then check if we have auth cookie
-  const authCookie = document.cookie.includes(`${AUTH_COOKIE_NAME}=`);
-  
-  // If either is missing, clear everything to be safe
-  if (!authInSession || !authCookie) {
+  try {
+    // First check if we have auth data in sessionStorage
+    const authInSession = sessionStorage.getItem(AUTH_STORAGE_KEY);
+    
+    // Then check if we have auth cookie
+    const authCookie = document.cookie.includes(`${AUTH_COOKIE_NAME}=`);
+    
+    // If either is missing, clear everything to be safe
+    if (!authInSession || !authCookie) {
+      clearAuthData();
+      return false;
+    }
+    
+    // Verify the auth data
+    return isAuthenticated();
+  } catch (error) {
+    console.error('Error checking auth on load:', error);
     clearAuthData();
     return false;
   }
-  
-  // Verify the auth data
-  return isAuthenticated();
 };
 
 /**
  * Initialize auth system
  */
 export const initAuth = (onAuthChange: (action: 'login' | 'logout') => void): () => void => {
-  // Check auth on load
-  const isAuth = checkAuthOnLoad();
-  
-  // If not authenticated, trigger logout action
-  if (!isAuth) {
-    onAuthChange('logout');
+  try {
+    // Check auth on load
+    const isAuth = checkAuthOnLoad();
+    
+    // If not authenticated, trigger logout action
+    if (!isAuth) {
+      // Use setTimeout to prevent immediate redirect
+      setTimeout(() => {
+        onAuthChange('logout');
+      }, 100);
+    }
+    
+    // Setup listener for auth changes
+    return setupAuthListener(onAuthChange);
+  } catch (error) {
+    console.error('Error initializing auth:', error);
+    // Setup listener anyway
+    return setupAuthListener(onAuthChange);
   }
-  
-  // Setup listener for auth changes
-  return setupAuthListener(onAuthChange);
 }; 

@@ -24,48 +24,86 @@ The PTCL Incident Management System is a Next.js application designed to track a
 
 ## Authentication System
 
-The application implements a robust authentication system with the following features:
+The PTCL Incident Management System implements a robust authentication system with the following features:
 
 ### Session Management
 
-- **Session Persistence**: Authentication state is stored in both sessionStorage and cookies
-- **Session Duration**: Sessions expire after 24 hours of inactivity
-- **Cross-Tab Synchronization**: Authentication state is synchronized across browser tabs
-- **Automatic Logout**: Users are automatically logged out when their session expires
+1. **Session Persistence**: Authentication state is maintained using both cookies and sessionStorage to ensure consistent behavior across the application.
+   - `sessionStorage` is used for client-side authentication state
+   - HTTP-only cookies are used for server-side authentication verification
+
+2. **Session Duration**: User sessions are valid for 24 hours, after which users are automatically logged out and required to authenticate again.
+
+3. **Cross-Tab Synchronization**: The system implements cross-tab authentication synchronization, ensuring that logging out in one tab logs the user out across all open tabs of the application.
+
+4. **Automatic Logout**: When a session expires or authentication fails, users are automatically redirected to the login page.
+
+5. **Redirect Protection**: The system implements safeguards against infinite redirect loops by:
+   - Using a cooldown period between authentication operations
+   - Adding redirect attempt tracking
+   - Implementing timeout delays for state updates
+   - Adding comprehensive error handling and logging
+   - Using header flags to prevent middleware redirect loops
 
 ### Authentication Flow
 
 1. **Login Process**:
    - User enters credentials on the login page
-   - Credentials are verified against the Firebase Firestore `auth_users` collection
-   - Upon successful authentication, session data is stored in sessionStorage and cookies
-   - User is redirected to the home page or their original destination
+   - Credentials are validated against the Firebase Firestore database
+   - Upon successful validation, authentication data is stored in sessionStorage and cookies
+   - User is redirected to the requested page or the home page
 
 2. **Authentication Verification**:
-   - Every protected route checks for valid authentication via middleware
-   - The middleware verifies the presence and validity of the auth cookie
-   - If authentication is invalid, the user is redirected to the login page
-   - The original URL is preserved as a redirect parameter
+   - Server-side middleware checks for the presence of authentication cookies on each request
+   - Client-side context provider verifies authentication state on component mount and route changes
+   - If authentication is invalid, user is redirected to the login page
 
 3. **Logout Process**:
-   - User clicks the logout button in the navigation bar
-   - All authentication data is cleared from sessionStorage and cookies
+   - User clicks logout or session expires
+   - Authentication data is cleared from sessionStorage and cookies
    - Authentication state change is broadcast to all open tabs
    - User is redirected to the login page
 
 ### Implementation Details
 
-- **AuthContext**: React context provider that manages authentication state
-- **authService**: Service module that handles authentication operations
-- **Middleware**: Next.js middleware that protects routes from unauthorized access
-- **Suspense Boundaries**: Components using client-side hooks like `useSearchParams()` are wrapped in Suspense boundaries
+1. **AuthContext**: A React context provider that manages authentication state and provides authentication methods to components.
+   - Implements state management for authentication status
+   - Provides login and logout functions
+   - Handles redirects based on authentication state
+   - Uses initialization flags and cooldown periods to prevent redirect loops
+
+2. **authService**: A service module that handles authentication operations.
+   - Manages authentication data storage and retrieval
+   - Implements cross-tab communication
+   - Provides utility functions for authentication operations
+   - Includes safeguards against rapid authentication operations
+
+3. **Middleware**: Next.js middleware that protects routes based on authentication status.
+   - Checks for authentication cookies on each request
+   - Redirects unauthenticated users to the login page
+   - Includes special handling to prevent redirect loops
+   - Uses custom headers to track redirect status
+
+4. **Suspense Boundaries**: Components that use routing hooks are wrapped in Suspense boundaries to prevent hydration errors.
+   - Login page uses Suspense to safely handle useSearchParams
+   - Prevents client/server mismatches during hydration
 
 ### Security Considerations
 
-- **Password Hashing**: Passwords are stored as bcrypt hashes, not plaintext
-- **Session Storage**: Authentication data is primarily stored in sessionStorage (cleared when browser is closed)
-- **Cookie Security**: Cookies use SameSite=strict and are HTTP-only where possible
-- **CSRF Protection**: Form submissions include CSRF protection via Next.js built-in mechanisms
+1. **Password Hashing**: User passwords are hashed using bcrypt before storage in the database.
+
+2. **Session Storage**: Authentication data is stored in sessionStorage, which is cleared when the browser is closed.
+
+3. **Cookie Security**: Authentication cookies use the SameSite=Strict attribute to prevent CSRF attacks.
+
+4. **CSRF Protection**: The application implements CSRF protection through SameSite cookies and proper authentication checks.
+
+5. **Redirect Loop Prevention**: The system includes multiple safeguards to prevent infinite redirect loops:
+   - Cooldown periods between authentication operations
+   - Timeout delays for state updates
+   - Tracking of redirect attempts
+   - Header-based redirect detection in middleware
+   - Comprehensive error handling and logging
 
 ## Routing & Navigation
 

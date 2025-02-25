@@ -30,6 +30,7 @@ function LoginPageContent() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [redirectAttempted, setRedirectAttempted] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login, isAuthenticated } = useAuth();
@@ -37,12 +38,21 @@ function LoginPageContent() {
   // Get the redirect path from URL params if available
   const redirectPath = searchParams.get('redirect') || '/';
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated - with safeguards
   useEffect(() => {
-    if (isAuthenticated) {
+    // Skip if we've already attempted a redirect or if not authenticated
+    if (redirectAttempted || !isAuthenticated) return;
+    
+    console.log(`User is authenticated, redirecting to: ${redirectPath}`);
+    setRedirectAttempted(true);
+    
+    // Use a timeout to prevent rapid redirects
+    const redirectTimer = setTimeout(() => {
       router.replace(redirectPath);
-    }
-  }, [isAuthenticated, router, redirectPath]);
+    }, 100);
+    
+    return () => clearTimeout(redirectTimer);
+  }, [isAuthenticated, redirectPath, router, redirectAttempted]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +60,7 @@ function LoginPageContent() {
     setLoading(true);
 
     try {
+      console.log('Attempting login from login page');
       await login(username.trim(), password);
       // Login successful - redirect will happen automatically via the useEffect
     } catch (err) {
