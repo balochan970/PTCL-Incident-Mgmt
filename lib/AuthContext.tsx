@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import * as authService from './authService';
 
@@ -37,8 +37,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
+  const lastRedirectTime = useRef(0);
   const router = useRouter();
   const pathname = usePathname();
+
+  // Constants for redirect protection
+  const REDIRECT_COOLDOWN = 1000; // 1 second cooldown between redirects
+  const REDIRECT_TIMEOUT = 300; // 300ms timeout before redirect
+
+  // Check if we can redirect (prevent rapid redirects)
+  const canRedirect = () => {
+    const now = Date.now();
+    if (redirecting || now - lastRedirectTime.current < REDIRECT_COOLDOWN) {
+      console.log('Redirect prevented: too soon or already redirecting');
+      return false;
+    }
+    return true;
+  };
+
+  // Safe redirect function
+  const safeRedirect = (path: string, reason: string) => {
+    if (!canRedirect()) return;
+    
+    console.log(`Redirecting to ${path}: ${reason}`);
+    setRedirecting(true);
+    lastRedirectTime.current = Date.now();
+    
+    // Use a timeout to prevent rapid redirects
+    setTimeout(() => {
+      router.replace(path);
+      // Reset redirecting state after a delay
+      setTimeout(() => {
+        setRedirecting(false);
+      }, REDIRECT_COOLDOWN);
+    }, REDIRECT_TIMEOUT);
+  };
 
   // Handle authentication changes
   const handleAuthChange = (action: 'login' | 'logout') => {
@@ -50,9 +84,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setRole(null);
       
       // Only redirect if we're not already on a public route
-      if (pathname && !publicRoutes.some(route => pathname.startsWith(route))) {
-        console.log(`Redirecting to login from ${pathname} after logout`);
-        router.replace('/login');
+      if (pathname && !publicRoutes.some(route => pathname === route || pathname.startsWith(route))) {
+        safeRedirect('/login', 'logout action');
       }
     } else {
       // Refresh auth state on login
@@ -72,48 +105,48 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     console.log('Initializing auth system');
     setLoading(true);
     
-    // Initialize auth and set up listeners
-    const cleanup = authService.initAuth(handleAuthChange);
-    
-    // Check if user is authenticated
-    if (authService.isAuthenticated()) {
-      console.log('User is authenticated during initialization');
-      const authData = authService.getAuthData();
-      if (authData) {
-        setIsAuthenticated(true);
-        setUsername(authData.username);
-        setRole(authData.role);
+    try {
+      // Initialize auth and set up listeners
+      const cleanup = authService.initAuth(handleAuthChange);
+      
+      // Check if user is authenticated
+      if (authService.isAuthenticated()) {
+        console.log('User is authenticated during initialization');
+        const authData = authService.getAuthData();
+        if (authData) {
+          setIsAuthenticated(true);
+          setUsername(authData.username);
+          setRole(authData.role);
+        }
+      } else {
+        console.log('User is not authenticated during initialization');
+        // We'll let the middleware handle redirects for unauthenticated users
       }
-    } else {
-      console.log('User is not authenticated during initialization');
-      // If not authenticated and on a protected route, redirect to login
-      // But we'll let the middleware handle this instead of doing it here
-      // to prevent potential redirect loops
+      
+      // Clean up listeners on unmount
+      return cleanup;
+    } catch (error) {
+      console.error('Error initializing auth:', error);
+    } finally {
+      setLoading(false);
+      setInitialized(true);
     }
-    
-    setLoading(false);
-    setInitialized(true);
-    
-    // Clean up listeners on unmount
-    return cleanup;
   }, [initialized]); // Only depend on initialized state
 
   // Handle route changes - separate from initialization
   useEffect(() => {
-    if (!initialized || loading) return;
+    // Skip checks during initialization or loading
+    if (!initialized || loading || redirecting) return;
     
-    // Don't redirect during initial load or when loading
-    // Only check on pathname changes after initialization
-    if (!isAuthenticated && pathname && !publicRoutes.some(route => pathname.startsWith(route))) {
+    // Check if we're on a protected route and not authenticated
+    const isProtectedRoute = pathname && 
+      !publicRoutes.some(route => pathname === route || pathname.startsWith(route));
+    
+    if (!isAuthenticated && isProtectedRoute) {
       console.log(`Protected route detected: ${pathname}, redirecting to login`);
-      // Add a small delay to prevent rapid redirects
-      const redirectTimer = setTimeout(() => {
-        router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
-      }, 100);
-      
-      return () => clearTimeout(redirectTimer);
+      safeRedirect(`/login?redirect=${encodeURIComponent(pathname)}`, 'unauthenticated on protected route');
     }
-  }, [pathname, isAuthenticated, initialized, loading, router]);
+  }, [pathname, isAuthenticated, initialized, loading, redirecting]);
 
   // Login function
   const login = async (username: string, password: string) => {
@@ -125,11 +158,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUsername(authData.username);
       setRole(authData.role);
       
-      // Small delay to ensure state is updated before redirect
-      setTimeout(() => {
-        console.log('Login successful, redirecting to home');
-        router.replace('/');
-      }, 100);
+      // Let the login page handle the redirect based on the redirect param
+      // Don't redirect here to prevent competing with the login page redirect
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
@@ -140,16 +170,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Logout function
   const logout = () => {
+    if (redirecting) return; // Prevent logout during redirect
+    
     console.log('Logging out user');
     authService.logoutUser();
     setIsAuthenticated(false);
     setUsername(null);
     setRole(null);
     
-    // Small delay to ensure state is updated before redirect
-    setTimeout(() => {
-      router.replace('/login');
-    }, 100);
+    safeRedirect('/login', 'logout function called');
   };
 
   // Provide the auth context to children

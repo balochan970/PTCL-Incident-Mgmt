@@ -39,11 +39,15 @@ The PTCL Incident Management System implements a robust authentication system wi
 4. **Automatic Logout**: When a session expires or authentication fails, users are automatically redirected to the login page.
 
 5. **Redirect Protection**: The system implements safeguards against infinite redirect loops by:
-   - Using a cooldown period between authentication operations
-   - Adding redirect attempt tracking
-   - Implementing timeout delays for state updates
+   - Using a cooldown period between authentication operations (1000ms)
+   - Adding redirect attempt tracking and limiting maximum redirect attempts
+   - Implementing timeout delays for state updates (300-500ms)
    - Adding comprehensive error handling and logging
    - Using header flags to prevent middleware redirect loops
+   - Tracking redirect state with a dedicated redirecting flag
+   - Implementing a safe redirect function with built-in safeguards
+   - Checking referrer headers to prevent loops from login page
+   - Using sessionStorage flags to track redirect sources
 
 ### Authentication Flow
 
@@ -71,22 +75,32 @@ The PTCL Incident Management System implements a robust authentication system wi
    - Provides login and logout functions
    - Handles redirects based on authentication state
    - Uses initialization flags and cooldown periods to prevent redirect loops
+   - Implements a safe redirect function with built-in safeguards
+   - Tracks redirecting state to prevent multiple simultaneous redirects
 
 2. **authService**: A service module that handles authentication operations.
    - Manages authentication data storage and retrieval
    - Implements cross-tab communication
    - Provides utility functions for authentication operations
    - Includes safeguards against rapid authentication operations
+   - Implements cooldown periods between authentication checks
+   - Uses simplified cookie values to prevent size issues
+   - Implements multiple cookie clearing strategies for reliable logout
 
 3. **Middleware**: Next.js middleware that protects routes based on authentication status.
    - Checks for authentication cookies on each request
    - Redirects unauthenticated users to the login page
    - Includes special handling to prevent redirect loops
    - Uses custom headers to track redirect status
+   - Checks referrer headers to prevent loops from login page
+   - Implements more precise route matching for public routes
 
-4. **Suspense Boundaries**: Components that use routing hooks are wrapped in Suspense boundaries to prevent hydration errors.
-   - Login page uses Suspense to safely handle useSearchParams
-   - Prevents client/server mismatches during hydration
+4. **Login Page**: The login component implements several safeguards against redirect loops.
+   - Tracks redirect attempts and limits maximum redirects
+   - Implements cooldown periods between redirects
+   - Uses sessionStorage flags to indicate redirect source
+   - Resets redirect flags after delays to allow for retries if needed
+   - Suspense boundaries to prevent hydration errors
 
 ### Security Considerations
 
@@ -99,11 +113,15 @@ The PTCL Incident Management System implements a robust authentication system wi
 4. **CSRF Protection**: The application implements CSRF protection through SameSite cookies and proper authentication checks.
 
 5. **Redirect Loop Prevention**: The system includes multiple safeguards to prevent infinite redirect loops:
-   - Cooldown periods between authentication operations
-   - Timeout delays for state updates
-   - Tracking of redirect attempts
+   - Cooldown periods between authentication operations (1000ms)
+   - Timeout delays for state updates (300-500ms)
+   - Tracking of redirect attempts with maximum limits
    - Header-based redirect detection in middleware
+   - Referrer checking to prevent loops from login page
+   - Dedicated redirecting state flag to prevent simultaneous redirects
    - Comprehensive error handling and logging
+   - Simplified cookie values to prevent size issues
+   - Multiple cookie clearing strategies for reliable logout
 
 ## Routing & Navigation
 

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import Link from 'next/link';
@@ -31,6 +31,8 @@ function LoginPageContent() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [redirectAttempted, setRedirectAttempted] = useState(false);
+  const [redirectCount, setRedirectCount] = useState(0);
+  const lastRedirectTime = useRef(0);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login, isAuthenticated } = useAuth();
@@ -38,21 +40,53 @@ function LoginPageContent() {
   // Get the redirect path from URL params if available
   const redirectPath = searchParams.get('redirect') || '/';
 
+  // Constants for redirect protection
+  const REDIRECT_COOLDOWN = 1000; // 1 second cooldown between redirects
+  const MAX_REDIRECT_ATTEMPTS = 2; // Maximum number of redirect attempts
+
+  // Check if we can redirect (prevent rapid redirects)
+  const canRedirect = () => {
+    const now = Date.now();
+    if (now - lastRedirectTime.current < REDIRECT_COOLDOWN) {
+      console.log('Login page: Redirect prevented - too soon');
+      return false;
+    }
+    
+    if (redirectCount >= MAX_REDIRECT_ATTEMPTS) {
+      console.log('Login page: Redirect prevented - too many attempts');
+      return false;
+    }
+    
+    return true;
+  };
+
   // Redirect if already authenticated - with safeguards
   useEffect(() => {
     // Skip if we've already attempted a redirect or if not authenticated
     if (redirectAttempted || !isAuthenticated) return;
     
-    console.log(`User is authenticated, redirecting to: ${redirectPath}`);
+    // Check if we can redirect
+    if (!canRedirect()) return;
+    
+    console.log(`Login page: User is authenticated, redirecting to: ${redirectPath}`);
     setRedirectAttempted(true);
+    setRedirectCount(prev => prev + 1);
+    lastRedirectTime.current = Date.now();
     
     // Use a timeout to prevent rapid redirects
     const redirectTimer = setTimeout(() => {
+      // Add a flag to sessionStorage to indicate we're redirecting from login
+      sessionStorage.setItem('redirectingFromLogin', 'true');
       router.replace(redirectPath);
-    }, 100);
+      
+      // Reset the redirect attempted flag after a delay to allow for retries if needed
+      setTimeout(() => {
+        setRedirectAttempted(false);
+      }, REDIRECT_COOLDOWN);
+    }, 500);
     
     return () => clearTimeout(redirectTimer);
-  }, [isAuthenticated, redirectPath, router, redirectAttempted]);
+  }, [isAuthenticated, redirectPath, router, redirectAttempted, redirectCount]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

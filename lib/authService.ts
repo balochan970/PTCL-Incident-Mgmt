@@ -11,7 +11,11 @@ export const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 // Prevent multiple auth operations in quick succession
 let authOperationInProgress = false;
 let lastAuthOperation = 0;
-const AUTH_OPERATION_COOLDOWN = 500; // 500ms cooldown between auth operations
+const AUTH_OPERATION_COOLDOWN = 1000; // 1000ms cooldown between auth operations
+
+// Track last auth check to prevent rapid checks
+let lastAuthCheck = 0;
+const AUTH_CHECK_COOLDOWN = 500; // 500ms cooldown between auth checks
 
 // Interface for authentication data
 export interface AuthData {
@@ -70,8 +74,13 @@ export const loginUser = async (username: string, password: string): Promise<Aut
     broadcastAuthChange('login');
     
     return authData;
+  } catch (error) {
+    console.error('Login error:', error);
+    // Ensure we clear auth data on error
+    clearAuthData();
+    throw error;
   } finally {
-    // Release the lock after a short delay
+    // Release the lock after a delay
     setTimeout(() => {
       setAuthOperationInProgress(false);
     }, AUTH_OPERATION_COOLDOWN);
@@ -95,8 +104,10 @@ export const logoutUser = (): void => {
     
     // Broadcast auth change to other tabs
     broadcastAuthChange('logout');
+  } catch (error) {
+    console.error('Logout error:', error);
   } finally {
-    // Release the lock after a short delay
+    // Release the lock after a delay
     setTimeout(() => {
       setAuthOperationInProgress(false);
     }, AUTH_OPERATION_COOLDOWN);
@@ -128,6 +139,16 @@ const setAuthOperationInProgress = (inProgress: boolean): void => {
  * Check if user is authenticated
  */
 export const isAuthenticated = (): boolean => {
+  // Prevent rapid auth checks
+  const now = Date.now();
+  if (now - lastAuthCheck < AUTH_CHECK_COOLDOWN) {
+    // Return the last known state if we checked recently
+    const authData = getAuthData();
+    return !!authData?.isAuthenticated;
+  }
+  
+  lastAuthCheck = now;
+  
   try {
     const authData = getAuthData();
     if (!authData) return false;
@@ -179,7 +200,13 @@ export const storeAuthData = (authData: AuthData): void => {
     sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
     
     // Set cookie with same expiry (24 hours)
-    document.cookie = `${AUTH_COOKIE_NAME}=${JSON.stringify(authData)}; path=/; max-age=${SESSION_DURATION / 1000}; samesite=strict`;
+    const cookieValue = encodeURIComponent(JSON.stringify({
+      isAuthenticated: true,
+      timestamp: authData.timestamp
+    }));
+    
+    // Use a simpler cookie value to avoid size issues
+    document.cookie = `${AUTH_COOKIE_NAME}=${cookieValue}; path=/; max-age=${SESSION_DURATION / 1000}; samesite=strict`;
   } catch (error) {
     console.error('Error storing auth data:', error);
   }
@@ -200,12 +227,16 @@ export const clearAuthData = (): void => {
     // Clear all sessionStorage
     sessionStorage.clear();
     
-    // Clear cookie
+    // Clear cookie - try multiple approaches to ensure it's cleared
     document.cookie = `${AUTH_COOKIE_NAME}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0`;
     
     // Also try with domain
     const domain = window.location.hostname;
     document.cookie = `${AUTH_COOKIE_NAME}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0; domain=${domain}`;
+    
+    // Try with different paths
+    document.cookie = `${AUTH_COOKIE_NAME}=; path=/login; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0`;
+    document.cookie = `${AUTH_COOKIE_NAME}=; path=/home; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0`;
   } catch (error) {
     console.error('Error clearing auth data:', error);
   }
