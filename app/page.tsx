@@ -1,9 +1,11 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import HomePage from './home/page';
+import ClientWrapper from './components/ClientWrapper';
 
-export default function RootPage() {
+// Client component that handles authentication
+function RootContent() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -51,11 +53,27 @@ export default function RootPage() {
       sessionStorage.setItem('fromProtected', 'true');
       router.replace('/login');
     }
-  }, []);
+  }, [router]);
 
   if (!isAuthenticated) {
-    return null;
+    return (
+      <div className="min-h-screen bg-[#FFF8E8] flex items-center justify-center">
+        <div className="p-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4A4637] mx-auto"></div>
+          <p className="mt-4 text-[#4A4637]">Checking authentication...</p>
+        </div>
+      </div>
+    );
   }
 
   return <HomePage />;
+}
+
+// Main export with ClientWrapper
+export default function RootPage() {
+  return (
+    <ClientWrapper>
+      <RootContent />
+    </ClientWrapper>
+  );
 }

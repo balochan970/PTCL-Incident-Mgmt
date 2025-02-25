@@ -25,8 +25,8 @@ const LoginPageLoading = () => (
   </div>
 );
 
-// Main login page component
-const LoginPageContent = () => {
+// Client component that uses useSearchParams
+const LoginForm = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -221,7 +221,7 @@ const LoginPageContent = () => {
 export default function LoginPage() {
   return (
     <Suspense fallback={<LoginPageLoading />}>
-      <LoginPageContent />
+      <LoginForm />
     </Suspense>
   );
 } 

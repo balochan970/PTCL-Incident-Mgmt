@@ -4,8 +4,8 @@ import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebaseConfig';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import NavBar from '@/app/components/NavBar';
-import ClientWrapper from '@/app/components/ClientWrapper';
+import NavBar from '../components/NavBar';
+import ClientWrapper from '../components/ClientWrapper';
 
 interface Fault {
   id: string;

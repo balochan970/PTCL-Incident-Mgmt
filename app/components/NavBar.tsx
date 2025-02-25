@@ -6,7 +6,7 @@ import { FaSignOutAlt, FaHome } from 'react-icons/fa';
 
 export default function NavBar({ topOffset = '0px' }) {
   const pathname = usePathname();
-  const { isAuthenticated, username, logout } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth();
   const isActive = (path: string) => pathname === path;
 
   return (

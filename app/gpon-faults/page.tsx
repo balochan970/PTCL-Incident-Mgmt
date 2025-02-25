@@ -9,7 +9,7 @@ import NavBar from '../components/NavBar';
 import { collection, addDoc, doc, getDoc, updateDoc, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebaseConfig';
 import { createGPONIncidents, GPONIncidentData, GPONFaultData } from '../services/incidentService';
-import ClientWrapper from '@/app/components/ClientWrapper';
+import ClientWrapper from '../components/ClientWrapper';
 
 interface FATEntry {
   id: string;

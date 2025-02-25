@@ -10,7 +10,7 @@ import { collection, addDoc, doc, getDoc, updateDoc, runTransaction } from 'fire
 import { db } from '@/lib/firebaseConfig';
 import { createIncident, IncidentData } from '../services/incidentService';
 import { useSearchParams } from 'next/navigation';
-import ClientWrapper from '@/app/components/ClientWrapper';
+import ClientWrapper from '../components/ClientWrapper';
 
 // Dynamic data for dropdowns
 const exchanges = [

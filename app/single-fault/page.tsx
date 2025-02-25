@@ -3,7 +3,7 @@
 "use client";
 import '../styles/globals.css';
 import Link from 'next/link';
-import React, { useState, ChangeEvent, FormEvent, useRef } from 'react';
+import React, { useState, ChangeEvent, FormEvent, useRef, Suspense } from 'react';
 
 import * as XLSX from 'xlsx';
 import { doc, updateDoc, getDoc, Firestore, collection, addDoc, runTransaction } from 'firebase/firestore';
@@ -13,6 +13,8 @@ import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import TemplatesOverlay from '../components/TemplatesOverlay';
 import NavBar from '../components/NavBar';
 import { createIncident, IncidentData } from '../services/incidentService';
+import ClientWrapper from '../components/ClientWrapper';
+import { useSearchParams } from 'next/navigation';
 
 const auth = getAuth();
 
@@ -95,7 +97,27 @@ const phoneContacts = [
   { name: 'Taimoor', number: '923312524443' }
 ];
 
-export default function SingleFaultPage() {
+// Loading component
+function LoadingSingleFault() {
+  return (
+    <div className="min-h-screen bg-[#FFF8E8] p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-[#4A4637]">Single Fault</h1>
+        </div>
+        <div className="bg-white rounded-lg shadow-lg border-2 border-[#D4C9A8] overflow-hidden">
+          <div className="p-8 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4A4637] mx-auto"></div>
+            <p className="mt-4 text-[#4A4637]">Loading fault details...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Client component that uses useSearchParams
+function SingleFaultContent() {
   const [nodes, setNodes] = useState<Nodes>({ nodeA: '', nodeB: '' });
   const [exchangeName, setExchangeName] = useState<string>('');
   const [stakeholders, setStakeholders] = useState<string[]>([]);
@@ -111,7 +133,7 @@ export default function SingleFaultPage() {
     nodeE: false,
     nodeF: false,
     nodeG: false,
-    nodeH: false,
+    nodeH: false
   });
   const [incidentOutput, setIncidentOutput] = useState<string | null>(null);
   const [showExtraNodes, setShowExtraNodes] = useState(false);
@@ -125,6 +147,8 @@ export default function SingleFaultPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const submitButtonRef = useRef<HTMLButtonElement>(null);
+
+  const searchParams = useSearchParams();
 
   // WhatsApp API call
   const sendWhatsAppViaApi = (phoneNumber: string) => {
@@ -845,5 +869,14 @@ export default function SingleFaultPage() {
         `}</style>
       </div>
     </>
+  );
+}
+
+// Main export with ClientWrapper
+export default function SingleFaultPage() {
+  return (
+    <ClientWrapper fallback={<LoadingSingleFault />}>
+      <SingleFaultContent />
+    </ClientWrapper>
   );
 }
