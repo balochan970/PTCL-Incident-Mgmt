@@ -6,39 +6,69 @@ This document summarizes the changes made to fix build and deployment issues in 
 ## Key Changes Made
 
 ### 1. Next.js Configuration
-- Disabled static export with `output: 'export'` (commented out)
-- Added `disableStaticGeneration: true` in experimental options to prevent static rendering errors
-- Enabled unoptimized images with `images: { unoptimized: true }`
-- Maintained strict mode and SWC minification
+- Removed experimental `disableStaticGeneration` option which was causing warnings
+- Added supported experimental options: `serverActions: true`
+- Maintained image optimization settings with `unoptimized: true`
+- Kept React strict mode enabled for better development experience
 
 ### 2. Firebase Configuration
-- Updated `firebase.json` to use Firebase Hosting with Next.js integration
-- Changed from static file serving to server-side rendered app:
-  - Changed from `"public": "out"` to `"source": "."`
-  - Added `"frameworksBackend": { "region": "us-central1" }` for server-side rendering
+- Simplified `firebase.json` to use Firebase Hosting with Next.js integration
+- Configured for server-side rendering with:
+  - `"source": "."` to use the project root
+  - `"frameworksBackend": { "region": "us-central1" }` to enable server-side rendering
 
 ### 3. Build Process
-- Added `build:export` script in `package.json` that continues even if errors occur
-- Updated GitHub Actions workflow to use `build:export` instead of `build`
-- Added `FIREBASE_CLI_EXPERIMENTS: webframeworks` to GitHub Actions environment
+- Modified GitHub Actions workflow to use standard build (`npm run build`)
+- Removed the `build:export` script that was trying to force static generation
+- Updated cache paths to only include `.next/cache` (not `out` directory)
+- Kept the `FIREBASE_CLI_EXPERIMENTS: webframeworks` environment variable
 
 ### 4. Component Structure
-- Added `ClientWrapper` component to properly handle client-side data fetching
-- Added proper Suspense boundaries to fix the `useSearchParams()` CSR bailout warnings
-- Created a custom 404 page with proper client-side rendering
+- Created a reusable `ClientWrapper` component that properly wraps client components in Suspense
+- This component should be used to wrap any component that uses:
+  - `useSearchParams()`
+  - `usePathname()`
+  - Other client-side React hooks
 
-## Known Issues
-- The current setup allows the build to continue even with useSearchParams CSR bailout warnings
-- These warnings occur because the pages use `useSearchParams` hook without being wrapped in a Suspense boundary
-- While the build succeeds with our current approach, each page that uses client-side data fetching should eventually be refactored to use proper Suspense boundaries
+## How to Fix useSearchParams Error
+
+In any component using `useSearchParams`, wrap the component's content with the ClientWrapper:
+
+```tsx
+// Before - causes build errors
+'use client';
+import { useSearchParams } from 'next/navigation';
+
+export default function MyPage() {
+  const searchParams = useSearchParams();
+  // ...rest of component
+}
+
+// After - fixes build errors
+'use client';
+import { useSearchParams } from 'next/navigation';
+import ClientWrapper from '@/components/ClientWrapper';
+
+export default function MyPage() {
+  return (
+    <ClientWrapper>
+      <MyPageContent />
+    </ClientWrapper>
+  );
+}
+
+function MyPageContent() {
+  const searchParams = useSearchParams();
+  // ...rest of component
+}
+```
 
 ## Next Steps
-1. Refactor pages with `useSearchParams` to properly implement Suspense boundaries
-2. Consider implementing proper Suspense boundaries in all client components
-3. Monitor GitHub Actions deployment to ensure successful builds
-4. Test the deployed application thoroughly to ensure functionality
+1. Apply the ClientWrapper pattern to all pages using `useSearchParams`
+2. Run a local build to verify the fixes work before pushing
+3. Test the deployed application thoroughly after fixing components
 
 ## References
-- [Next.js Server Components Documentation](https://nextjs.org/docs/getting-started/react-essentials#server-components)
+- [Next.js Suspense Documentation](https://nextjs.org/docs/app/building-your-application/routing/loading-ui-and-streaming#suspense-boundaries)
 - [Firebase Hosting with Next.js](https://firebase.google.com/docs/hosting/frameworks/nextjs)
 - [useSearchParams in Next.js](https://nextjs.org/docs/app/api-reference/functions/use-search-params) 

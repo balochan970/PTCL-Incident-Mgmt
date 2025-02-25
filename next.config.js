@@ -7,10 +7,10 @@ const nextConfig = {
   },
   reactStrictMode: true,
   swcMinify: true,
-  // Completely disable static page optimization to allow client-side data fetching
+  // Use correct experimental options for Next.js 14
   experimental: {
-    // Disable static page generation completely
-    disableStaticGeneration: true
+    // These are supported options that won't cause warnings
+    serverActions: true
   },
   // Allow importing images
   webpack(config) {
