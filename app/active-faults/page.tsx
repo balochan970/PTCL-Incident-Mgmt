@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebaseConfig';
 import Link from 'next/link';
@@ -32,7 +32,27 @@ interface Fault {
   stakeholders?: string[];
 }
 
-export default function ActiveFaultsPage() {
+// Loading component to display while the main content is loading
+function LoadingFaults() {
+  return (
+    <div className="min-h-screen bg-[#FFF8E8] p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-[#4A4637]">Active Faults</h1>
+        </div>
+        <div className="bg-white rounded-lg shadow-lg border-2 border-[#D4C9A8] overflow-hidden">
+          <div className="p-8 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4A4637] mx-auto"></div>
+            <p className="mt-4 text-[#4A4637]">Loading faults...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Main component content
+function ActiveFaultsContent() {
   const [activeTab, setActiveTab] = useState<'gpon' | 'switch'>('gpon');
   const [faults, setFaults] = useState<Fault[]>([]);
   const [loading, setLoading] = useState(true);
@@ -273,5 +293,14 @@ export default function ActiveFaultsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Export the main component with Suspense boundary
+export default function ActiveFaultsPage() {
+  return (
+    <Suspense fallback={<LoadingFaults />}>
+      <ActiveFaultsContent />
+    </Suspense>
   );
 } 
