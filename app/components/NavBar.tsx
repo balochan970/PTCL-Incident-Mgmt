@@ -1,14 +1,26 @@
 "use client";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/lib/AuthContext';
+import { FaSignOutAlt, FaHome } from 'react-icons/fa';
 
 export default function NavBar({ topOffset = '0px' }) {
   const pathname = usePathname();
+  const { isAuthenticated, username, logout } = useAuth();
   const isActive = (path: string) => pathname === path;
 
   return (
     <nav className="nav-container" style={{ top: topOffset }}>
       <div className="nav-content">
+        {isAuthenticated && (
+          <Link 
+            href="/home"
+            className={`nav-link home-link ${isActive('/home') ? 'active' : ''}`}
+          >
+            <FaHome className="mr-1" />
+            Home
+          </Link>
+        )}
         <Link 
           href="/single-fault"
           className={`nav-link ${isActive('/single-fault') ? 'active' : ''}`}
@@ -51,6 +63,17 @@ export default function NavBar({ topOffset = '0px' }) {
         >
           KnowledgeBase
         </Link>
+        
+        {isAuthenticated && (
+          <button 
+            onClick={logout}
+            className="logout-button"
+            aria-label="Logout"
+          >
+            <FaSignOutAlt className="mr-1" />
+            Logout
+          </button>
+        )}
       </div>
 
       <style jsx>{`
@@ -97,6 +120,40 @@ export default function NavBar({ topOffset = '0px' }) {
           position: relative;
           letter-spacing: 0.5px;
           text-transform: uppercase;
+          display: flex;
+          align-items: center;
+        }
+
+        .home-link {
+          background-color: #4A4637;
+          color: white;
+        }
+
+        .logout-button {
+          padding: 0.35rem 1.25rem;
+          border-radius: 6px;
+          color: #FFF;
+          background-color: #A0522D;
+          font-size: 0.9rem;
+          font-weight: 900;
+          text-decoration: none;
+          transition: all 0.25s ease-in-out;
+          white-space: nowrap;
+          line-height: 1.5;
+          border: 2px solid #8B4513;
+          position: relative;
+          letter-spacing: 0.5px;
+          text-transform: uppercase;
+          cursor: pointer;
+          margin-left: auto;
+          display: flex;
+          align-items: center;
+        }
+
+        .logout-button:hover {
+          background-color: #8B4513;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(139, 69, 19, 0.4);
         }
 
         .nav-link::after {
@@ -164,6 +221,11 @@ export default function NavBar({ topOffset = '0px' }) {
             padding: 0.25rem 1rem;
             font-size: 0.8rem;
             font-weight: 900;
+          }
+          
+          .logout-button {
+            padding: 0.25rem 1rem;
+            font-size: 0.8rem;
           }
         }
       `}</style>

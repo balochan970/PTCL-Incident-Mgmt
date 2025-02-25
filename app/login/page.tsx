@@ -1,11 +1,9 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebaseConfig';
-import { comparePassword } from '@/lib/utils/password';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import Link from 'next/link';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -14,72 +12,30 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { login, isAuthenticated } = useAuth();
+  
+  // Get the redirect path from URL params if available
+  const redirectPath = searchParams.get('redirect') || '/';
 
-  // Clear any existing auth data on component mount
+  // Redirect if already authenticated
   useEffect(() => {
-    // Ensure complete logout by clearing both localStorage and cookies
-    localStorage.removeItem('auth');
-    document.cookie = 'auth=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0; domain=' + window.location.hostname;
-    
-    // Also clear any session storage that might contain auth data
-    sessionStorage.clear();
-    
-    // Force reload if coming from a protected page to ensure clean state
-    const fromProtected = sessionStorage.getItem('fromProtected');
-    if (fromProtected) {
-      sessionStorage.removeItem('fromProtected');
-      window.location.reload();
+    if (isAuthenticated) {
+      router.replace(redirectPath);
     }
-  }, []);
+  }, [isAuthenticated, router, redirectPath]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    // Clear any existing auth data before attempting login
-    localStorage.removeItem('auth');
-    document.cookie = 'auth=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0; domain=' + window.location.hostname;
-
-    const trimmedUsername = username.trim();
-
     try {
-      const authUsersRef = collection(db, 'auth_users');
-      const q = query(authUsersRef, where('username', '==', trimmedUsername));
-      const querySnapshot = await getDocs(q);
-
-      if (querySnapshot.empty) {
-        setError('Invalid username or password');
-        setLoading(false);
-        return;
-      }
-
-      const userDoc = querySnapshot.docs[0];
-      const userData = userDoc.data();
-
-      const isValidPassword = await comparePassword(password, userData.password);
-
-      if (!isValidPassword) {
-        setError('Invalid username or password');
-        setLoading(false);
-        return;
-      }
-
-      const authData = {
-        username: userData.username,
-        role: userData.role,
-        isAuthenticated: true,
-        timestamp: new Date().getTime() // Add timestamp for session expiry checks
-      };
-      
-      localStorage.setItem('auth', JSON.stringify(authData));
-      document.cookie = `auth=${JSON.stringify(authData)}; path=/; max-age=86400; samesite=strict`; // 24 hours
-
-      // Use replace instead of push to prevent back navigation to login
-      router.replace('/');
+      await login(username.trim(), password);
+      // Login successful - redirect will happen automatically via the useEffect
     } catch (err) {
       console.error('Login error:', err);
-      setError('An error occurred during login. Please try again.');
+      setError('Invalid username or password');
     } finally {
       setLoading(false);
     }
