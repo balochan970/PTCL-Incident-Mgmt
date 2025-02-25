@@ -5,6 +5,7 @@ import { db } from '@/lib/firebaseConfig';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import NavBar from '@/app/components/NavBar';
+import ClientWrapper from '@/app/components/ClientWrapper';
 
 interface Fault {
   id: string;
@@ -51,7 +52,7 @@ function LoadingFaults() {
   );
 }
 
-// Main component content
+// Client component that uses useSearchParams
 function ActiveFaultsContent() {
   const [activeTab, setActiveTab] = useState<'gpon' | 'switch'>('gpon');
   const [faults, setFaults] = useState<Fault[]>([]);
@@ -252,35 +253,43 @@ function ActiveFaultsContent() {
                         key={fault.id}
                         className="border-b border-[#D4C9A8] hover:bg-[#FFF8E8] transition-colors"
                       >
-                        <td className="px-4 py-3">{fault.incidentNumber || `TICKET-${fault.id.slice(0, 6)}`}</td>
+                        <td className="px-4 py-3">
+                          <Link href={`/single-fault?id=${fault.id}&type=${activeTab === 'gpon' ? 'gpon' : 'switch'}`} className="text-blue-600 hover:underline">
+                            {fault.incidentNumber || 'N/A'}
+                          </Link>
+                        </td>
                         <td className="px-4 py-3">{formatDate(fault.timestamp)}</td>
                         {activeTab === 'gpon' ? (
                           <>
-                            <td className="px-4 py-3">{fault.exchangeName || '-'}</td>
-                            <td className="px-4 py-3">{fault.fdh || '-'}</td>
-                            <td className="px-4 py-3">{fault.fats?.[0]?.value || fault.fats?.[0]?.id || '-'}</td>
-                            <td className="px-4 py-3">{fault.oltIp || '-'}</td>
-                            <td className="px-4 py-3">{fault.fsps?.[0]?.value || fault.fsps?.[0]?.id || '-'}</td>
+                            <td className="px-4 py-3">{fault.exchangeName || 'N/A'}</td>
+                            <td className="px-4 py-3">{fault.fdh || 'N/A'}</td>
+                            <td className="px-4 py-3">
+                              {fault.fats && fault.fats.length > 0
+                                ? fault.fats.map(fat => fat.value).join(', ')
+                                : 'N/A'}
+                            </td>
+                            <td className="px-4 py-3">{fault.oltIp || 'N/A'}</td>
+                            <td className="px-4 py-3">
+                              {fault.fsps && fault.fsps.length > 0
+                                ? fault.fsps.map(fsp => fsp.value).join(', ')
+                                : 'N/A'}
+                            </td>
                           </>
                         ) : (
                           <>
-                            <td className="px-4 py-3">{fault.domain || '-'}</td>
-                            <td className="px-4 py-3">{fault.exchangeName || '-'}</td>
-                            <td className="px-4 py-3">{fault.faultType || '-'}</td>
+                            <td className="px-4 py-3">{fault.domain || 'N/A'}</td>
+                            <td className="px-4 py-3">{fault.exchangeName || 'N/A'}</td>
+                            <td className="px-4 py-3">{fault.faultType || 'N/A'}</td>
                             <td className="px-4 py-3">
-                              {(fault.nodes?.nodeA || fault.nodeA) && (fault.nodes?.nodeB || fault.nodeB)
-                                ? `${fault.nodes?.nodeA || fault.nodeA} ⟶ ${fault.nodes?.nodeB || fault.nodeB}`
-                                : fault.nodes?.nodeA || fault.nodeA || fault.nodes?.nodeB || fault.nodeB || '-'}
+                              {fault.nodeA && fault.nodeB
+                                ? `${fault.nodeA} - ${fault.nodeB}`
+                                : 'N/A'}
                             </td>
                           </>
                         )}
                         <td className="px-4 py-3">
-                          <span className={`px-2 py-1 rounded-full text-sm ${
-                            fault.status?.toLowerCase().includes('in progress') 
-                              ? 'bg-blue-100 text-blue-800'
-                              : 'bg-green-100 text-green-800'
-                          }`}>
-                            {fault.status || 'Unknown'}
+                          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
+                            {fault.status}
                           </span>
                         </td>
                       </tr>
@@ -296,11 +305,11 @@ function ActiveFaultsContent() {
   );
 }
 
-// Export the main component with Suspense boundary
+// Main export with ClientWrapper
 export default function ActiveFaultsPage() {
   return (
-    <Suspense fallback={<LoadingFaults />}>
+    <ClientWrapper fallback={<LoadingFaults />}>
       <ActiveFaultsContent />
-    </Suspense>
+    </ClientWrapper>
   );
 } 
