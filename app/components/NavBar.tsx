@@ -40,7 +40,7 @@ export default function NavBar({ topOffset = '0px' }) {
           GPON Reports
         </Link>
         <Link 
-          href="/active-faults"
+          href="/active-faults?source=navbar"
           className={`nav-link ${isActive('/active-faults') ? 'active' : ''}`}
         >
           Active Faults

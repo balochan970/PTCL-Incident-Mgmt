@@ -1,25 +1,91 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// List of public routes that don't require authentication
+const publicRoutes = ['/login', '/active-faults'];
+
+// List of protected routes that require authentication
+const protectedRoutes = [
+  '/',
+  '/home',
+  '/single-fault',
+  '/multiple-faults', 
+  '/gpon-faults',
+  '/reports',
+  '/gpon-reports',
+  '/knowledgebase'
+];
+
+// Helper function to clear auth cookies
+const clearAuthCookies = (response: NextResponse) => {
+  response.cookies.delete('auth');
+  return response;
+};
+
 export function middleware(request: NextRequest) {
-  const auth = request.cookies.get('auth');
-  const isAuthenticated = auth ? JSON.parse(auth.value).isAuthenticated : false;
-  const path = request.nextUrl.pathname;
+  const { pathname } = request.nextUrl;
+  const { searchParams, origin } = request.nextUrl;
 
-  // Public paths that don't require authentication
-  const publicPaths = ['/login', '/active-faults'];
+  // Check if the path is protected
+  const isProtectedRoute = protectedRoutes.includes(pathname);
+  const isPublicRoute = publicRoutes.includes(pathname);
 
-  // Check if the path is public
-  const isPublicPath = publicPaths.includes(path);
+  // Get auth cookie
+  const authCookie = request.cookies.get('auth');
+  let isAuthenticated = false;
 
-  // If the path is public and user is authenticated, redirect to home
-  if (isPublicPath && isAuthenticated && path !== '/active-faults') {
-    return NextResponse.redirect(new URL('/', request.url));
+  // Verify authentication
+  if (authCookie?.value) {
+    try {
+      const authData = JSON.parse(authCookie.value);
+      isAuthenticated = authData.isAuthenticated && authData.username && authData.role;
+    } catch {
+      isAuthenticated = false;
+    }
   }
 
-  // If the path is not public and user is not authenticated, redirect to login
-  if (!isPublicPath && !isAuthenticated) {
-    return NextResponse.redirect(new URL('/login', request.url));
+  // For active-faults page, add a source parameter to track where the request came from
+  if (pathname === '/active-faults') {
+    // Check if this is a direct navigation (not from login or navbar)
+    const referer = request.headers.get('referer') || '';
+    const isFromLogin = referer.includes('/login');
+    
+    // If not already in the URL and not a direct navigation from login, add source=navbar
+    if (!searchParams.has('source')) {
+      const newUrl = new URL(request.url);
+      newUrl.searchParams.set('source', isFromLogin ? 'login' : 'navbar');
+      return NextResponse.redirect(newUrl);
+    }
+    
+    return NextResponse.next();
+  }
+
+  // Handle protected routes
+  if (isProtectedRoute) {
+    if (!isAuthenticated) {
+      const response = NextResponse.redirect(new URL('/login', request.url));
+      return clearAuthCookies(response);
+    }
+    return NextResponse.next();
+  }
+
+  // Handle login route
+  if (pathname === '/login') {
+    if (isAuthenticated) {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // Handle public routes
+  if (isPublicRoute) {
+    return NextResponse.next();
+  }
+
+  // For any other routes, redirect to login if not authenticated
+  if (!isAuthenticated) {
+    const response = NextResponse.redirect(new URL('/login', request.url));
+    return clearAuthCookies(response);
   }
 
   return NextResponse.next();
@@ -30,12 +96,12 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except:
-     * 1. /api routes
-     * 2. /_next (Next.js internals)
-     * 3. /fonts (inside public)
-     * 4. /icons (inside public)
-     * 5. all root files inside public (e.g. /favicon.ico)
+     * 1. _next/static (static files)
+     * 2. _next/image (image optimization files)
+     * 3. favicon.ico (favicon file)
+     * 4. public folder
+     * 5. public assets
      */
-    '/((?!api|_next|fonts|icons|[\\w-]+\\.\\w+).*)',
+    '/((?!_next/static|_next/image|favicon.ico|public|assets).*)',
   ],
 }; 

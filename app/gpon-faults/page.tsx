@@ -1,11 +1,14 @@
 "use client";
 import '../styles/globals.css';
-import { useState, ChangeEvent, FormEvent } from 'react';
+import { useState, ChangeEvent, FormEvent, useRef } from 'react';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import TemplatesOverlay from '../components/TemplatesOverlay';
 import NavBar from '../components/NavBar';
+import { collection, addDoc, doc, getDoc, updateDoc, runTransaction } from 'firebase/firestore';
+import { db } from '@/lib/firebaseConfig';
+import { createGPONIncidents, GPONIncidentData, GPONFaultData } from '../services/incidentService';
 
 interface FATEntry {
   id: string;
@@ -81,6 +84,9 @@ export default function GPONFaultsPage() {
   const [domain, setDomain] = useState<string>('Switch/Access'); // GPON is always Switch/Access
   const [availableStakeholders, setAvailableStakeholders] = useState<string[]>(morningTeamMembers);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const submitButtonRef = useRef<HTMLButtonElement>(null);
 
   // Add fault
   const addFault = () => {
@@ -165,61 +171,71 @@ export default function GPONFaultsPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setSubmissionError(null);
+    
+    // Disable the submit button to prevent multiple clicks
+    if (submitButtonRef.current) {
+      submitButtonRef.current.disabled = true;
+    }
+
     try {
-      // Prepare the data for incident creation
-      const data = {
+      // Prepare the GPON incident data
+      const gponIncidentData: GPONIncidentData = {
         exchangeName,
         stakeholders,
         ticketGenerator,
-        isGPONFault: true,
         faults: faults.map(fault => ({
-          ...fault,
-          timestamp: new Date(),
-        })),
+          fdh: fault.fdh,
+          fats: fault.fats,
+          oltIp: fault.oltIp,
+          fsps: fault.fsps,
+          isOutage: fault.isOutage,
+          remarks: fault.remarks
+        }))
       };
 
-      // Send the data to the API
-      const response = await fetch('/api/create-gpon-incidents', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
+      // Create the GPON incidents using our service
+      const incidentNumbers = await createGPONIncidents(gponIncidentData);
+
+      // Format the message for display
+      let formattedMessage = `***GPON Faults in ${exchangeName}***\n\n`;
+
+      faults.forEach((fault, index) => {
+        formattedMessage += `FAULT #${index + 1}\n`;
+        formattedMessage += `Node: ${fault.oltIp}\n`;
+        if (fault.remarks) {
+          formattedMessage += `Remarks: ${fault.remarks}\n`;
+        }
+        formattedMessage += `Ticket #: ${incidentNumbers[index]}\n\n`;
       });
 
-      const result = await response.json();
+      formattedMessage += `Informed to: ${stakeholders.join(", ")}\n`;
+      formattedMessage += `Ticket Generator: ${ticketGenerator}`;
 
-      if (response.ok) {
-        // Format the message for display
-        let formattedMessage = `***GPON Faults in ${exchangeName}***\n\n`;
+      setIncidentOutput(formattedMessage);
+      alert('GPON Faults Created Successfully!');
 
-        faults.forEach((fault, index) => {
-          formattedMessage += `FAULT #${index + 1}\n`;
-          formattedMessage += `Node: ${fault.oltIp}\n`;
-          if (fault.remarks) {
-            formattedMessage += `Remarks: ${fault.remarks}\n`;
-          }
-          formattedMessage += `Ticket #: ${result.incidentNumbers[index]}\n\n`;
-        });
-
-        formattedMessage += `Informed to: ${stakeholders.join(", ")}\n`;
-        formattedMessage += `Ticket Generator: ${ticketGenerator}`;
-
-        setIncidentOutput(formattedMessage);
-        alert('GPON Faults Created Successfully!');
-
-        // Clear form
-        setFaults([]);
-        setStakeholders([]);
-        setExchangeName('');
-        setTicketGenerator('');
-      } else {
-        console.error('Error:', result.message);
-        alert(`Error: ${result.message}`);
-      }
+      // Clear form
+      setFaults([]);
+      setStakeholders([]);
+      setExchangeName('');
+      setTicketGenerator('');
     } catch (error) {
       console.error('Error submitting the form:', error);
+      setSubmissionError('There was an error submitting the form. Please try again.');
       alert('There was an error submitting the form.');
+    } finally {
+      setIsSubmitting(false);
+      // Re-enable the submit button
+      if (submitButtonRef.current) {
+        submitButtonRef.current.disabled = false;
+      }
     }
   };
 
@@ -514,15 +530,25 @@ export default function GPONFaultsPage() {
                <span className="icon">➕</span>
                Add Fault
               </button>
-              <button
-                type="submit"
-                className="btn btn-success"
-                disabled={faults.length === 0}
-              >
-                <span className="icon">📝</span>
-                Submit Incidents
-              </button>
+              <div className="form-actions mt-20">
+                <button
+                  type="submit"
+                  className="btn btn-success"
+                  disabled={faults.length === 0 || isSubmitting}
+                  ref={submitButtonRef}
+                >
+                  <span className="icon">📝</span>
+                  {isSubmitting ? 'Submitting...' : 'Submit Incidents'}
+                </button>
+              </div>
             </div>
+
+            {/* Display submission error if any */}
+            {submissionError && (
+              <div className="error-message" style={{ color: 'red', marginTop: '10px' }}>
+                {submissionError}
+              </div>
+            )}
           </form>
         </div>
 

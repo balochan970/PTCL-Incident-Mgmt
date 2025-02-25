@@ -1,5 +1,5 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebaseConfig';
@@ -15,35 +15,40 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
+  // Clear any existing auth data on component mount
+  useEffect(() => {
+    // Ensure complete logout by clearing both localStorage and cookies
+    localStorage.removeItem('auth');
+    document.cookie = 'auth=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0; domain=' + window.location.hostname;
+    
+    // Also clear any session storage that might contain auth data
+    sessionStorage.clear();
+    
+    // Force reload if coming from a protected page to ensure clean state
+    const fromProtected = sessionStorage.getItem('fromProtected');
+    if (fromProtected) {
+      sessionStorage.removeItem('fromProtected');
+      window.location.reload();
+    }
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
+    // Clear any existing auth data before attempting login
+    localStorage.removeItem('auth');
+    document.cookie = 'auth=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0; domain=' + window.location.hostname;
+
     const trimmedUsername = username.trim();
-    console.log('Attempting login with username:', trimmedUsername);
 
     try {
-      // Query the auth_users collection
       const authUsersRef = collection(db, 'auth_users');
-      
-      // First, log all users in the collection (for debugging)
-      console.log('Checking all users in auth_users collection:');
-      const allUsers = await getDocs(authUsersRef);
-      allUsers.forEach(doc => {
-        const data = doc.data();
-        console.log('Found user:', data.username);
-      });
-
-      // Now query for the specific user
       const q = query(authUsersRef, where('username', '==', trimmedUsername));
-      console.log('Querying for user with username:', trimmedUsername);
-      
       const querySnapshot = await getDocs(q);
-      console.log('Query returned', querySnapshot.size, 'results');
 
       if (querySnapshot.empty) {
-        console.log('No user found with username:', trimmedUsername);
         setError('Invalid username or password');
         setLoading(false);
         return;
@@ -51,36 +56,27 @@ export default function LoginPage() {
 
       const userDoc = querySnapshot.docs[0];
       const userData = userDoc.data();
-      console.log('Found user data:', { ...userData, password: '[HIDDEN]' });
 
-      // Compare passwords
-      console.log('Comparing passwords...');
       const isValidPassword = await comparePassword(password, userData.password);
-      console.log('Password comparison result:', isValidPassword);
 
       if (!isValidPassword) {
-        console.log('Invalid password');
         setError('Invalid username or password');
         setLoading(false);
         return;
       }
 
-      console.log('Login successful, storing auth data...');
-      // Store auth info in localStorage and cookies
       const authData = {
         username: userData.username,
         role: userData.role,
-        isAuthenticated: true
+        isAuthenticated: true,
+        timestamp: new Date().getTime() // Add timestamp for session expiry checks
       };
       
       localStorage.setItem('auth', JSON.stringify(authData));
-      
-      // Set cookie for server-side auth
-      document.cookie = `auth=${JSON.stringify(authData)}; path=/; max-age=86400`; // 24 hours
+      document.cookie = `auth=${JSON.stringify(authData)}; path=/; max-age=86400; samesite=strict`; // 24 hours
 
-      console.log('Redirecting to home page...');
-      // Redirect to home page
-      router.push('/');
+      // Use replace instead of push to prevent back navigation to login
+      router.replace('/');
     } catch (err) {
       console.error('Login error:', err);
       setError('An error occurred during login. Please try again.');
@@ -162,7 +158,7 @@ export default function LoginPage() {
 
         <div className="mt-8 pt-6 border-t-2 border-[#D4C9A8]">
           <Link 
-            href="/active-faults" 
+            href="/active-faults?source=login" 
             className="block w-full text-center py-3 px-4 rounded-lg bg-white border-2 border-[#4A4637] text-[#4A4637] hover:bg-[#4A4637] hover:text-white transition-all duration-200 shadow-md"
           >
             <div className="flex items-center justify-center gap-2">

@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "ptcl-incident-mgmt"
+  },
+  "targets": {
+    "ptcl-incident-mgmt": {
+      "hosting": {
+        "rocktr2": [
+          "rocktr2"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

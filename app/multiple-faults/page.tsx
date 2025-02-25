@@ -1,11 +1,14 @@
 "use client";
 import '../styles/globals.css';
-import { useState, ChangeEvent, FormEvent } from 'react';
+import { useState, ChangeEvent, FormEvent, useRef } from 'react';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
 import TemplatesOverlay from '../components/TemplatesOverlay';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import NavBar from '../components/NavBar';
+import { collection, addDoc, doc, getDoc, updateDoc, runTransaction } from 'firebase/firestore';
+import { db } from '@/lib/firebaseConfig';
+import { createIncident, IncidentData } from '../services/incidentService';
 
 // Dynamic data for dropdowns
 const exchanges = [
@@ -121,6 +124,9 @@ export default function MultipleFaults() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [customStakeholder, setCustomStakeholder] = useState('');
   const [showCustomStakeholder, setShowCustomStakeholder] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const submitButtonRef = useRef<HTMLButtonElement>(null);
 
   // WhatsApp API call
   const sendWhatsAppViaApi = (phoneNumber: string) => {
@@ -212,13 +218,27 @@ export default function MultipleFaults() {
       return;
     }
 
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setSubmissionError(null);
+    
+    // Disable the submit button to prevent multiple clicks
+    if (submitButtonRef.current) {
+      submitButtonRef.current.disabled = true;
+    }
+
     try {
       // Create an array to store all incident numbers
       const incidentNumbers: string[] = [];
 
       // Submit each fault as a separate incident
       for (const fault of faults) {
-        const data = {
+        // Prepare the incident data
+        const incidentData: IncidentData = {
           exchangeName,
           nodes: fault.nodes,
           stakeholders: selectedStakeholders,
@@ -226,24 +246,14 @@ export default function MultipleFaults() {
           equipmentType: fault.equipmentType,
           domain,
           ticketGenerator,
-          isMultipleFault: true, // Flag to indicate this is part of a multiple fault report
-          outageNodes: fault.outageNodes
+          isMultipleFault: true,
+          outageNodes: fault.outageNodes,
+          remarks: fault.remarks
         };
 
-        const response = await fetch('/api/create-incident', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to create incident');
-        }
-
-        const result = await response.json();
-        incidentNumbers.push(result.incidentNumber);
+        // Create the incident using our service
+        const nextIncidentNumber = await createIncident(incidentData);
+        incidentNumbers.push(nextIncidentNumber);
       }
 
       // Create formatted message with all incident numbers
@@ -277,7 +287,14 @@ export default function MultipleFaults() {
       
     } catch (error) {
       console.error('Error:', error);
+      setSubmissionError('Error submitting the form. Please try again.');
       alert('Error submitting the form');
+    } finally {
+      setIsSubmitting(false);
+      // Re-enable the submit button
+      if (submitButtonRef.current) {
+        submitButtonRef.current.disabled = false;
+      }
     }
   };
 
@@ -642,6 +659,13 @@ export default function MultipleFaults() {
               ))}
             </div>
 
+            {/* Display submission error if any */}
+            {submissionError && (
+              <div className="error-message" style={{ color: 'red', marginTop: '10px' }}>
+                {submissionError}
+              </div>
+            )}
+
             <div className="actions-row">
               <button
                 type="button"
@@ -652,9 +676,14 @@ export default function MultipleFaults() {
                 Add Fault
               </button>
 
-              <button type="submit" className="btn btn-primary">
+              <button 
+                type="submit" 
+                className="btn btn-primary"
+                disabled={isSubmitting || faults.length === 0}
+                ref={submitButtonRef}
+              >
                 <span className="icon">📝</span>
-                Submit Incidents
+                {isSubmitting ? 'Submitting...' : 'Submit Incidents'}
               </button>
             </div>
           </form>

@@ -3,15 +3,16 @@
 "use client";
 import '../styles/globals.css';
 import Link from 'next/link';
-import React, { useState, ChangeEvent, FormEvent } from 'react';
+import React, { useState, ChangeEvent, FormEvent, useRef } from 'react';
 
 import * as XLSX from 'xlsx';
-import { doc, updateDoc, getDoc, Firestore } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, Firestore, collection, addDoc, runTransaction } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { db } from '@/lib/firebaseConfig';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import TemplatesOverlay from '../components/TemplatesOverlay';
 import NavBar from '../components/NavBar';
+import { createIncident, IncidentData } from '../services/incidentService';
 
 const auth = getAuth();
 
@@ -121,6 +122,9 @@ export default function SingleFaultPage() {
   const [remarks, setRemarks] = useState<string>('');
   const [customStakeholder, setCustomStakeholder] = useState('');
   const [showCustomStakeholder, setShowCustomStakeholder] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const submitButtonRef = useRef<HTMLButtonElement>(null);
 
   // WhatsApp API call
   const sendWhatsAppViaApi = (phoneNumber: string) => {
@@ -181,78 +185,94 @@ export default function SingleFaultPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
   
-    // Prepare the data for incident creation
-    const data = {
-      exchangeName,
-      nodes,
-      stakeholders,
-      faultType,
-      equipmentType,
-      domain,
-      ticketGenerator,
-      isMultipleFault: false,
-      outageNodes,
-      remarks: faultType === 'Outage' ? remarks : undefined
-    };
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setSubmissionError(null);
+    
+    // Disable the submit button to prevent multiple clicks
+    if (submitButtonRef.current) {
+      submitButtonRef.current.disabled = true;
+    }
   
     try {
-      const response = await fetch('/api/create-incident', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      // Prepare the incident data
+      const incidentData: IncidentData = {
+        exchangeName,
+        nodes,
+        stakeholders,
+        faultType,
+        equipmentType,
+        domain,
+        ticketGenerator,
+        isMultipleFault: false,
+        outageNodes: outageNodes || {
+          nodeA: false,
+          nodeB: false,
+          nodeC: false,
+          nodeD: false,
+          nodeE: false,
+          nodeF: false,
+          nodeG: false,
+          nodeH: false
         },
-        body: JSON.stringify(data),
-      });
-  
-      const result = await response.json();
-  
-      if (response.ok) {
-        // Incident successfully created
-        let formattedMessage = `***${equipmentType} ${faultType} in ${exchangeName}***\n\n`;
-  
-        // Add nodes with outage status
-        const nodesList = [];
-        if (nodes.nodeA) nodesList.push(`${nodes.nodeA}${outageNodes.nodeA ? ' (outage)' : ''}`);
-        if (nodes.nodeB) nodesList.push(`${nodes.nodeB}${outageNodes.nodeB ? ' (outage)' : ''}`);
-        if (nodes.nodeC) nodesList.push(`${nodes.nodeC}${outageNodes.nodeC ? ' (outage)' : ''}`);
-        if (nodes.nodeD) nodesList.push(`${nodes.nodeD}${outageNodes.nodeD ? ' (outage)' : ''}`);
-        if (nodes.nodeE) nodesList.push(`${nodes.nodeE}${outageNodes.nodeE ? ' (outage)' : ''}`);
-        if (nodes.nodeF) nodesList.push(`${nodes.nodeF}${outageNodes.nodeF ? ' (outage)' : ''}`);
-        if (nodes.nodeG) nodesList.push(`${nodes.nodeG}${outageNodes.nodeG ? ' (outage)' : ''}`);
-        if (nodes.nodeH) nodesList.push(`${nodes.nodeH}${outageNodes.nodeH ? ' (outage)' : ''}`);
-        
-        formattedMessage += nodesList.join(' ------/------ ');
-        
-        // Add remarks if present
-        if (remarks && faultType === 'Outage') {
-          formattedMessage += `\n(${remarks})`;
-        }
-        
-        formattedMessage += `\n\nInformed to ${stakeholders.join(", ")}\nTicket Generator: ${ticketGenerator}\n\nTicket # ${result.incidentNumber}`;
+        remarks
+      };
 
-        // Update the incident output state
-        setIncidentOutput(formattedMessage);
-        setCurrentIncidentId(result.incidentNumber);
+      // Create the incident using our service
+      const nextIncidentNumber = await createIncident(incidentData);
 
-        // Display "Incident Created" message
-        alert('Incident Created Successfully!');
-        
-        // Clear form fields
-        setExchangeName('');
-        setNodes({ nodeA: '', nodeB: '', nodeC: '', nodeD: '', nodeE: '', nodeF: '', nodeG: '', nodeH: '' });
-        setStakeholders([]);
-        setFaultType('');
-        setOutageNodes({ nodeA: false, nodeB: false, nodeC: false, nodeD: false, nodeE: false, nodeF: false, nodeG: false, nodeH: false });
-        setShowExtraNodes(false);
-        setDomain('');
-        setEquipmentType('');
-      } else {
-        console.error('Error:', result.message);
-        alert(`Error: ${result.message}`);
+      // Format the message for display
+      let formattedMessage = `***${equipmentType} ${faultType} in ${exchangeName}***\n\n`;
+  
+      // Add nodes with outage status
+      const nodesList = [];
+      if (nodes.nodeA) nodesList.push(`${nodes.nodeA}${outageNodes.nodeA ? ' (outage)' : ''}`);
+      if (nodes.nodeB) nodesList.push(`${nodes.nodeB}${outageNodes.nodeB ? ' (outage)' : ''}`);
+      if (nodes.nodeC) nodesList.push(`${nodes.nodeC}${outageNodes.nodeC ? ' (outage)' : ''}`);
+      if (nodes.nodeD) nodesList.push(`${nodes.nodeD}${outageNodes.nodeD ? ' (outage)' : ''}`);
+      if (nodes.nodeE) nodesList.push(`${nodes.nodeE}${outageNodes.nodeE ? ' (outage)' : ''}`);
+      if (nodes.nodeF) nodesList.push(`${nodes.nodeF}${outageNodes.nodeF ? ' (outage)' : ''}`);
+      if (nodes.nodeG) nodesList.push(`${nodes.nodeG}${outageNodes.nodeG ? ' (outage)' : ''}`);
+      if (nodes.nodeH) nodesList.push(`${nodes.nodeH}${outageNodes.nodeH ? ' (outage)' : ''}`);
+      
+      formattedMessage += nodesList.join(' ------/------ ');
+      
+      // Add remarks if present
+      if (remarks && faultType === 'Outage') {
+        formattedMessage += `\n(${remarks})`;
       }
+      
+      formattedMessage += `\n\nInformed to ${stakeholders.join(", ")}\nTicket Generator: ${ticketGenerator}\n\nTicket # ${nextIncidentNumber}`;
+
+      // Update the incident output state
+      setIncidentOutput(formattedMessage);
+
+      // Display "Incident Created" message
+      alert('Incident Created Successfully!');
+      
+      // Clear form fields
+      setExchangeName('');
+      setNodes({ nodeA: '', nodeB: '', nodeC: '', nodeD: '', nodeE: '', nodeF: '', nodeG: '', nodeH: '' });
+      setStakeholders([]);
+      setFaultType('');
+      setOutageNodes({ nodeA: false, nodeB: false, nodeC: false, nodeD: false, nodeE: false, nodeF: false, nodeG: false, nodeH: false });
+      setShowExtraNodes(false);
+      setDomain('');
+      setEquipmentType('');
     } catch (error) {
       console.error('Error submitting the form:', error);
+      setSubmissionError('There was an error submitting the form. Please try again.');
       alert('There was an error submitting the form.');
+    } finally {
+      setIsSubmitting(false);
+      // Re-enable the submit button
+      if (submitButtonRef.current) {
+        submitButtonRef.current.disabled = false;
+      }
     }
   };
 
@@ -617,10 +637,21 @@ export default function SingleFaultPage() {
               </div>
             </div>
 
-            <div className="actions-row">
-              <button type="submit" className="btn btn-primary">
-                <span className="icon">📝</span>
-                Submit Incident
+            {/* Display submission error if any */}
+            {submissionError && (
+              <div className="error-message" style={{ color: 'red', marginTop: '10px' }}>
+                {submissionError}
+              </div>
+            )}
+
+            <div className="form-actions">
+              <button 
+                type="submit" 
+                className="btn btn-primary"
+                disabled={isSubmitting}
+                ref={submitButtonRef}
+              >
+                {isSubmitting ? 'Submitting...' : 'Submit Incident'}
               </button>
             </div>
           </form>
