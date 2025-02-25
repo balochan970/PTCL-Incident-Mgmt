@@ -1,6 +1,6 @@
 "use client";
 import '../styles/globals.css';
-import { useState, ChangeEvent, FormEvent, useRef } from 'react';
+import { useState, ChangeEvent, FormEvent, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
 import TemplatesOverlay from '../components/TemplatesOverlay';
@@ -9,6 +9,8 @@ import NavBar from '../components/NavBar';
 import { collection, addDoc, doc, getDoc, updateDoc, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebaseConfig';
 import { createIncident, IncidentData } from '../services/incidentService';
+import { useSearchParams } from 'next/navigation';
+import ClientWrapper from '@/app/components/ClientWrapper';
 
 // Dynamic data for dropdowns
 const exchanges = [
@@ -110,7 +112,29 @@ interface Fault {
   remarks?: string;
 }
 
-export default function MultipleFaults() {
+// Loading component
+function LoadingMultipleFaults() {
+  return (
+    <div className="min-h-screen bg-[#FFF8E8] p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-[#4A4637]">Multiple Faults</h1>
+        </div>
+        <div className="bg-white rounded-lg shadow-lg border-2 border-[#D4C9A8] overflow-hidden">
+          <div className="p-8 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4A4637] mx-auto"></div>
+            <p className="mt-4 text-[#4A4637]">Loading...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Client component that uses useSearchParams
+function MultipleFaultsContent() {
+  const searchParams = useSearchParams();
+  
   const [domain, setDomain] = useState<string>('');
   const [ticketGenerator, setTicketGenerator] = useState<string>('');
   const [exchangeName, setExchangeName] = useState<string>('');
@@ -348,8 +372,8 @@ export default function MultipleFaults() {
   };
 
   return (
-    <>
-      <NavBar />
+    <div className="min-h-screen bg-[#FFF8E8]">
+      <NavBar topOffset="0px" />
       <div className="container fade-in" style={{ paddingTop: '32px' }}>
         <div className="header card">
           <div className="title-section">
@@ -926,6 +950,15 @@ export default function MultipleFaults() {
           }
         `}</style>
       </div>
-    </>
+    </div>
+  );
+}
+
+// Main export with ClientWrapper
+export default function MultipleFaultsPage() {
+  return (
+    <ClientWrapper fallback={<LoadingMultipleFaults />}>
+      <MultipleFaultsContent />
+    </ClientWrapper>
   );
 } 
