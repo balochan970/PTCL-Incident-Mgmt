@@ -24,46 +24,48 @@ The PTCL Incident Management System is a Next.js application designed to track a
 
 ## Authentication System
 
+The application implements a robust authentication system with the following features:
+
+### Session Management
+
+- **Session Persistence**: Authentication state is stored in both sessionStorage and cookies
+- **Session Duration**: Sessions expire after 24 hours of inactivity
+- **Cross-Tab Synchronization**: Authentication state is synchronized across browser tabs
+- **Automatic Logout**: Users are automatically logged out when their session expires
+
 ### Authentication Flow
 
 1. **Login Process**:
-   - User enters username and password on the login page
-   - Credentials are verified against the `auth_users` collection in Firestore
-   - Password comparison is done using bcryptjs
-   - Upon successful authentication, user data is stored in both localStorage and cookies
+   - User enters credentials on the login page
+   - Credentials are verified against the Firebase Firestore `auth_users` collection
+   - Upon successful authentication, session data is stored in sessionStorage and cookies
+   - User is redirected to the home page or their original destination
 
-2. **Authentication State Management**:
-   - Authentication state is maintained through both localStorage and HTTP-only cookies
-   - The middleware checks for the presence and validity of the auth cookie on protected routes
-   - Session expiry is set to 24 hours from login
+2. **Authentication Verification**:
+   - Every protected route checks for valid authentication via middleware
+   - The middleware verifies the presence and validity of the auth cookie
+   - If authentication is invalid, the user is redirected to the login page
+   - The original URL is preserved as a redirect parameter
 
 3. **Logout Process**:
-   - Clears authentication data from localStorage and cookies
-   - Redirects to the login page
+   - User clicks the logout button in the navigation bar
+   - All authentication data is cleared from sessionStorage and cookies
+   - Authentication state change is broadcast to all open tabs
+   - User is redirected to the login page
 
-### Authentication Code Implementation
+### Implementation Details
 
-The authentication system is implemented across several files:
+- **AuthContext**: React context provider that manages authentication state
+- **authService**: Service module that handles authentication operations
+- **Middleware**: Next.js middleware that protects routes from unauthorized access
+- **Suspense Boundaries**: Components using client-side hooks like `useSearchParams()` are wrapped in Suspense boundaries
 
-- `app/login/page.tsx`: Handles the login form and authentication logic
-- `middleware.ts`: Protects routes and enforces authentication
-- `lib/utils/password.ts`: Provides password hashing and comparison utilities
+### Security Considerations
 
-Password comparison is handled securely:
-
-```typescript
-// lib/utils/password.ts
-import bcryptjs from 'bcryptjs';
-
-export const hashPassword = async (password: string): Promise<string> => {
-  const salt = await bcryptjs.genSalt(10);
-  return bcryptjs.hash(password, salt);
-};
-
-export const comparePassword = async (password: string, hash: string): Promise<boolean> => {
-  return bcryptjs.compare(password, hash);
-};
-```
+- **Password Hashing**: Passwords are stored as bcrypt hashes, not plaintext
+- **Session Storage**: Authentication data is primarily stored in sessionStorage (cleared when browser is closed)
+- **Cookie Security**: Cookies use SameSite=strict and are HTTP-only where possible
+- **CSRF Protection**: Form submissions include CSRF protection via Next.js built-in mechanisms
 
 ## Routing & Navigation
 

@@ -1,11 +1,30 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import Link from 'next/link';
 import { useAuth } from '@/lib/AuthContext';
 
-export default function LoginPage() {
+// Loading component to show while the page is loading
+function LoginPageLoading() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#FFF8E8]">
+      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-lg border-2 border-[#D4C9A8]">
+        <div className="text-center">
+          <div className="mt-6 text-3xl font-extrabold text-[#4A4637]">
+            Loading...
+          </div>
+          <div className="mt-4 flex justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4A4637]"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// The actual login page component
+function LoginPageContent() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -125,5 +144,14 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Export the main component with Suspense
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageLoading />}>
+      <LoginPageContent />
+    </Suspense>
   );
 } 
