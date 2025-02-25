@@ -39,12 +39,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [initialized, setInitialized] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
   const lastRedirectTime = useRef(0);
+  const pendingRedirectRef = useRef<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
   // Constants for redirect protection
-  const REDIRECT_COOLDOWN = 1000; // 1 second cooldown between redirects
-  const REDIRECT_TIMEOUT = 300; // 300ms timeout before redirect
+  const REDIRECT_COOLDOWN = 1500; // 1.5 second cooldown between redirects
+  const REDIRECT_TIMEOUT = 500; // 500ms timeout before redirect
 
   // Check if we can redirect (prevent rapid redirects)
   const canRedirect = () => {
@@ -58,7 +59,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Safe redirect function
   const safeRedirect = (path: string, reason: string) => {
-    if (!canRedirect()) return;
+    if (!canRedirect()) {
+      // Store the pending redirect for later
+      pendingRedirectRef.current = path;
+      console.log(`Storing pending redirect to ${path} for later: ${reason}`);
+      return;
+    }
+    
+    // Clear any pending redirects
+    pendingRedirectRef.current = null;
     
     console.log(`Redirecting to ${path}: ${reason}`);
     setRedirecting(true);
@@ -66,13 +75,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     // Use a timeout to prevent rapid redirects
     setTimeout(() => {
-      router.replace(path);
+      // Add a flag to sessionStorage to track the redirect source
+      sessionStorage.setItem('redirectSource', 'authContext');
+      sessionStorage.setItem('redirectTime', Date.now().toString());
+      
+      // Check if we're already on this path to prevent unnecessary redirects
+      if (pathname !== path) {
+        router.replace(path);
+      } else {
+        console.log(`Already at ${path}, skipping redirect`);
+      }
+      
       // Reset redirecting state after a delay
       setTimeout(() => {
         setRedirecting(false);
+        
+        // Check for pending redirects
+        if (pendingRedirectRef.current) {
+          const pendingPath = pendingRedirectRef.current;
+          pendingRedirectRef.current = null;
+          console.log(`Processing pending redirect to ${pendingPath}`);
+          safeRedirect(pendingPath, 'processing pending redirect');
+        }
       }, REDIRECT_COOLDOWN);
     }, REDIRECT_TIMEOUT);
   };
+
+  // Process any pending redirects
+  useEffect(() => {
+    if (!redirecting && pendingRedirectRef.current) {
+      const pendingPath = pendingRedirectRef.current;
+      pendingRedirectRef.current = null;
+      console.log(`Processing pending redirect to ${pendingPath} after cooldown`);
+      safeRedirect(pendingPath, 'processing pending redirect after cooldown');
+    }
+  }, [redirecting]);
 
   // Handle authentication changes
   const handleAuthChange = (action: 'login' | 'logout') => {
@@ -87,13 +124,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (pathname && !publicRoutes.some(route => pathname === route || pathname.startsWith(route))) {
         safeRedirect('/login', 'logout action');
       }
-    } else {
+    } else if (action === 'login') {
       // Refresh auth state on login
       const authData = authService.getAuthData();
       if (authData) {
         setIsAuthenticated(true);
         setUsername(authData.username);
         setRole(authData.role);
+        
+        // Check if we need to redirect from login page
+        if (pathname === '/login') {
+          // Get the redirect path from URL params if available
+          const params = new URLSearchParams(window.location.search);
+          const redirectPath = params.get('redirect') || '/';
+          safeRedirect(decodeURIComponent(redirectPath), 'login action from login page');
+        }
       }
     }
   };
@@ -138,6 +183,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Skip checks during initialization or loading
     if (!initialized || loading || redirecting) return;
     
+    // Skip if we're coming from a redirect
+    const redirectSource = sessionStorage.getItem('redirectSource');
+    const redirectTime = sessionStorage.getItem('redirectTime');
+    
+    if (redirectSource === 'authContext' && redirectTime) {
+      const timeSinceRedirect = Date.now() - parseInt(redirectTime);
+      if (timeSinceRedirect < 2000) { // 2 seconds grace period
+        console.log('Skipping route check - coming from recent redirect');
+        return;
+      }
+      // Clear the redirect source after the grace period
+      sessionStorage.removeItem('redirectSource');
+      sessionStorage.removeItem('redirectTime');
+    }
+    
     // Check if we're on a protected route and not authenticated
     const isProtectedRoute = pathname && 
       !publicRoutes.some(route => pathname === route || pathname.startsWith(route));
@@ -145,6 +205,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!isAuthenticated && isProtectedRoute) {
       console.log(`Protected route detected: ${pathname}, redirecting to login`);
       safeRedirect(`/login?redirect=${encodeURIComponent(pathname)}`, 'unauthenticated on protected route');
+    }
+    
+    // Handle login page redirect if already authenticated
+    if (isAuthenticated && pathname === '/login') {
+      // Get the redirect path from URL params if available
+      const params = new URLSearchParams(window.location.search);
+      const redirectPath = params.get('redirect') || '/';
+      console.log(`Already authenticated on login page, redirecting to: ${redirectPath}`);
+      safeRedirect(decodeURIComponent(redirectPath), 'already authenticated on login page');
     }
   }, [pathname, isAuthenticated, initialized, loading, redirecting]);
 
@@ -154,12 +223,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       console.log('Attempting login');
       const authData = await authService.loginUser(username, password);
+      
+      // Update state with auth data
       setIsAuthenticated(true);
       setUsername(authData.username);
       setRole(authData.role);
       
-      // Let the login page handle the redirect based on the redirect param
-      // Don't redirect here to prevent competing with the login page redirect
+      // Return without redirecting - let the login page or route change handler handle redirects
+      return;
     } catch (error) {
       console.error('Login failed:', error);
       throw error;

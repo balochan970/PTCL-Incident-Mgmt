@@ -33,39 +33,47 @@ function LoginPageContent() {
   const [redirectAttempted, setRedirectAttempted] = useState(false);
   const [redirectCount, setRedirectCount] = useState(0);
   const lastRedirectTime = useRef(0);
+  const loginAttemptTime = useRef(0);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, loading: authLoading } = useAuth();
   
   // Get the redirect path from URL params if available
   const redirectPath = searchParams.get('redirect') || '/';
 
   // Constants for redirect protection
-  const REDIRECT_COOLDOWN = 1000; // 1 second cooldown between redirects
-  const MAX_REDIRECT_ATTEMPTS = 2; // Maximum number of redirect attempts
+  const REDIRECT_COOLDOWN = 2000; // 2 second cooldown between redirects
+  const MAX_REDIRECT_ATTEMPTS = 3; // Maximum number of redirect attempts
+  const LOGIN_REDIRECT_DELAY = 800; // Delay after login before redirect
 
   // Check if we can redirect (prevent rapid redirects)
   const canRedirect = () => {
     const now = Date.now();
+    
+    // Don't redirect if we've tried too many times
+    if (redirectCount >= MAX_REDIRECT_ATTEMPTS) {
+      console.log('Login page: Redirect prevented - too many attempts');
+      return false;
+    }
+    
+    // Don't redirect if we've redirected recently
     if (now - lastRedirectTime.current < REDIRECT_COOLDOWN) {
       console.log('Login page: Redirect prevented - too soon');
       return false;
     }
     
-    if (redirectCount >= MAX_REDIRECT_ATTEMPTS) {
-      console.log('Login page: Redirect prevented - too many attempts');
+    // Don't redirect if we're still loading
+    if (loading || authLoading) {
+      console.log('Login page: Redirect prevented - still loading');
       return false;
     }
     
     return true;
   };
 
-  // Redirect if already authenticated - with safeguards
-  useEffect(() => {
-    // Skip if we've already attempted a redirect or if not authenticated
+  // Handle manual redirect to home after login
+  const redirectAfterLogin = () => {
     if (redirectAttempted || !isAuthenticated) return;
-    
-    // Check if we can redirect
     if (!canRedirect()) return;
     
     console.log(`Login page: User is authenticated, redirecting to: ${redirectPath}`);
@@ -73,33 +81,73 @@ function LoginPageContent() {
     setRedirectCount(prev => prev + 1);
     lastRedirectTime.current = Date.now();
     
+    // Add a flag to sessionStorage to indicate we're redirecting from login
+    sessionStorage.setItem('redirectingFromLogin', 'true');
+    sessionStorage.setItem('loginRedirectTime', Date.now().toString());
+    
     // Use a timeout to prevent rapid redirects
-    const redirectTimer = setTimeout(() => {
-      // Add a flag to sessionStorage to indicate we're redirecting from login
-      sessionStorage.setItem('redirectingFromLogin', 'true');
-      router.replace(redirectPath);
+    setTimeout(() => {
+      // Check if we're still on the login page before redirecting
+      if (window.location.pathname.includes('/login')) {
+        router.replace(decodeURIComponent(redirectPath));
+      }
       
       // Reset the redirect attempted flag after a delay to allow for retries if needed
       setTimeout(() => {
         setRedirectAttempted(false);
       }, REDIRECT_COOLDOWN);
-    }, 500);
+    }, LOGIN_REDIRECT_DELAY);
+  };
+
+  // Redirect if already authenticated - with safeguards
+  useEffect(() => {
+    // Skip if auth is still loading
+    if (authLoading) return;
     
-    return () => clearTimeout(redirectTimer);
-  }, [isAuthenticated, redirectPath, router, redirectAttempted, redirectCount]);
+    // If we just logged in, wait a bit before redirecting
+    const timeSinceLogin = Date.now() - loginAttemptTime.current;
+    if (loginAttemptTime.current > 0 && timeSinceLogin < LOGIN_REDIRECT_DELAY) {
+      console.log(`Login page: Waiting for login to complete (${timeSinceLogin}ms)`);
+      return;
+    }
+    
+    // If authenticated, redirect to the intended destination
+    if (isAuthenticated) {
+      redirectAfterLogin();
+    }
+  }, [isAuthenticated, authLoading, redirectPath]);
+
+  // Clear redirect flags when component mounts
+  useEffect(() => {
+    // Clear any previous redirect flags
+    sessionStorage.removeItem('redirectingFromLogin');
+    sessionStorage.removeItem('loginRedirectTime');
+    
+    // Reset redirect count when component mounts
+    setRedirectCount(0);
+    setRedirectAttempted(false);
+    
+    return () => {
+      // Clean up when component unmounts
+      sessionStorage.removeItem('redirectingFromLogin');
+    };
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+    loginAttemptTime.current = Date.now();
 
     try {
       console.log('Attempting login from login page');
       await login(username.trim(), password);
-      // Login successful - redirect will happen automatically via the useEffect
+      // Login successful - redirect will happen via the useEffect
+      console.log('Login successful, waiting for redirect');
     } catch (err) {
       console.error('Login error:', err);
       setError('Invalid username or password');
+      loginAttemptTime.current = 0;
     } finally {
       setLoading(false);
     }
@@ -168,10 +216,10 @@ function LoginPageContent() {
           <div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || authLoading}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#4A4637] hover:bg-[#635C48] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#4A4637] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading || authLoading ? 'Signing in...' : 'Sign in'}
             </button>
           </div>
         </form>

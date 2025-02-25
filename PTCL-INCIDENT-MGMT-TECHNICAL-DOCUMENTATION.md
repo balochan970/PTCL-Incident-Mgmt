@@ -48,6 +48,10 @@ The PTCL Incident Management System implements a robust authentication system wi
    - Implementing a safe redirect function with built-in safeguards
    - Checking referrer headers to prevent loops from login page
    - Using sessionStorage flags to track redirect sources
+   - Implementing a pending redirect queue to handle multiple redirect requests
+   - Using cookies to track recent redirects and prevent loops
+   - Adding path checking to avoid unnecessary redirects to the current path
+   - Implementing grace periods after redirects to prevent immediate rechecks
 
 ### Authentication Flow
 
@@ -77,6 +81,10 @@ The PTCL Incident Management System implements a robust authentication system wi
    - Uses initialization flags and cooldown periods to prevent redirect loops
    - Implements a safe redirect function with built-in safeguards
    - Tracks redirecting state to prevent multiple simultaneous redirects
+   - Maintains a queue of pending redirects to handle multiple redirect requests
+   - Implements path checking to avoid unnecessary redirects
+   - Uses sessionStorage flags to track redirect sources and timing
+   - Implements grace periods after redirects to prevent immediate rechecks
 
 2. **authService**: A service module that handles authentication operations.
    - Manages authentication data storage and retrieval
@@ -94,6 +102,8 @@ The PTCL Incident Management System implements a robust authentication system wi
    - Uses custom headers to track redirect status
    - Checks referrer headers to prevent loops from login page
    - Implements more precise route matching for public routes
+   - Uses cookies to track recent redirects and prevent loops
+   - Implements cookie clearing for expired redirect tracking
 
 4. **Login Page**: The login component implements several safeguards against redirect loops.
    - Tracks redirect attempts and limits maximum redirects
@@ -101,6 +111,9 @@ The PTCL Incident Management System implements a robust authentication system wi
    - Uses sessionStorage flags to indicate redirect source
    - Resets redirect flags after delays to allow for retries if needed
    - Suspense boundaries to prevent hydration errors
+   - Tracks login attempt timing to ensure state updates complete before redirects
+   - Implements path checking to ensure redirects only happen from the login page
+   - Clears redirect flags on component mount and unmount
 
 ### Security Considerations
 
@@ -113,12 +126,17 @@ The PTCL Incident Management System implements a robust authentication system wi
 4. **CSRF Protection**: The application implements CSRF protection through SameSite cookies and proper authentication checks.
 
 5. **Redirect Loop Prevention**: The system includes multiple safeguards to prevent infinite redirect loops:
-   - Cooldown periods between authentication operations (1000ms)
-   - Timeout delays for state updates (300-500ms)
-   - Tracking of redirect attempts with maximum limits
+   - Cooldown periods between authentication operations (1000-1500ms)
+   - Timeout delays for state updates (500-800ms)
+   - Tracking of redirect attempts with maximum limits (3 attempts)
    - Header-based redirect detection in middleware
    - Referrer checking to prevent loops from login page
    - Dedicated redirecting state flag to prevent simultaneous redirects
+   - Pending redirect queue to handle multiple redirect requests
+   - Path checking to avoid unnecessary redirects to the current path
+   - Cookies to track recent redirects (3-second expiry)
+   - Grace periods after redirects (2 seconds) to prevent immediate rechecks
+   - Login attempt timing tracking to ensure state updates complete before redirects
    - Comprehensive error handling and logging
    - Simplified cookie values to prevent size issues
    - Multiple cookie clearing strategies for reliable logout
@@ -156,6 +174,11 @@ Route protection is implemented in the `middleware.ts` file, which:
 3. Redirects unauthenticated users to the login page when they attempt to access protected routes
 4. Allows access to public routes without authentication
 5. Redirects authenticated users away from the login page
+6. Implements safeguards to prevent redirect loops:
+   - Checks for redirect headers to prevent multiple redirects
+   - Checks referrer headers to prevent loops from the login page
+   - Uses cookies to track recent redirects with a short expiry (3 seconds)
+   - Clears redirect tracking cookies after use
 
 ```typescript
 // Excerpt from middleware.ts

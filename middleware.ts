@@ -52,6 +52,16 @@ export function middleware(request: NextRequest) {
       return NextResponse.next();
     }
     
+    // Check if we have a recent redirect cookie to prevent loops
+    const recentRedirect = request.cookies.get('recent-redirect');
+    if (recentRedirect) {
+      console.log('Middleware: Recent redirect detected, preventing loop');
+      // Continue but clear the cookie
+      const response = NextResponse.next();
+      response.cookies.delete('recent-redirect');
+      return response;
+    }
+    
     const url = new URL('/login', request.url);
     // Encode the pathname to handle special characters
     url.searchParams.set('redirect', encodeURIComponent(pathname));
@@ -61,6 +71,13 @@ export function middleware(request: NextRequest) {
     response.headers.set('x-middleware-redirect', 'true');
     response.headers.set('x-auth-redirect', 'true');
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    
+    // Set a cookie to track recent redirects (expires in 3 seconds)
+    response.cookies.set('recent-redirect', 'true', { 
+      maxAge: 3,
+      path: '/',
+    });
+    
     return response;
   }
 
