@@ -1,19 +1,14 @@
 {
   "hosting": {
     "target": "rocktr2",
-    "public": "out",
+    "source": ".",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
     ],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ],
-    "cleanUrls": true,
-    "trailingSlash": false
+    "frameworksBackend": {
+      "region": "us-central1"
+    }
   }
 }

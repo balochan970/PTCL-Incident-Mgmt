@@ -1,11 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
+  // Disable static export completely
+  // output: 'export',
   images: {
     unoptimized: true,
   },
   reactStrictMode: true,
   swcMinify: true,
+  // Completely disable static page optimization to allow client-side data fetching
+  experimental: {
+    // Disable static page generation completely
+    disableStaticGeneration: true
+  },
   // Allow importing images
   webpack(config) {
     config.module.rules.push({

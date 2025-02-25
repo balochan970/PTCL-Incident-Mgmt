@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import ClientWrapper from './components/ClientWrapper';
 
-export default function NotFound() {
+function NotFoundContent() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
       <div className="p-8 bg-white rounded-lg shadow-md text-center">
@@ -16,5 +17,13 @@ export default function NotFound() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function NotFound() {
+  return (
+    <ClientWrapper>
+      <NotFoundContent />
+    </ClientWrapper>
   );
 } 
