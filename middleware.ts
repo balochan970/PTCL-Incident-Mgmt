@@ -3,98 +3,102 @@ import type { NextRequest } from 'next/server';
 
 // Define public routes that don't require authentication
 const publicRoutes = [
-  '/login', 
+  '/login',
   '/active-faults',
   '/api/login'
 ];
 
-// Define the middleware function
+// Define static asset patterns
+const staticAssetPatterns = [
+  /\.(jpg|jpeg|png|gif|svg|ico|webp)$/,
+  /\.(css|js|json)$/,
+  /^\/favicon\.ico$/,
+  /^\/manifest\.json$/,
+  /^\/robots\.txt$/,
+  /^\/sitemap\.xml$/,
+  /^\/api\/(?!auth)/
+];
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  // Check if this is a public route or static asset
-  const isPublicRoute = publicRoutes.some(route => 
-    pathname === route || pathname.startsWith(route)
-  );
-  
-  const isStaticAsset = 
-    pathname.startsWith('/api/') || 
-    pathname.startsWith('/_next/') ||
-    pathname.includes('.') ||
-    pathname.startsWith('/favicon');
-  
-  if (isPublicRoute || isStaticAsset) {
+  // Skip middleware for public routes
+  if (publicRoutes.some(route => pathname === route || pathname.startsWith(`${route}/`))) {
     return NextResponse.next();
   }
-
-  // Check for the auth cookie
+  
+  // Skip middleware for static assets
+  if (staticAssetPatterns.some(pattern => pattern.test(pathname))) {
+    return NextResponse.next();
+  }
+  
+  // Check for auth cookie
   const authCookie = request.cookies.get('auth-session');
   
-  // If no auth cookie is found, redirect to login
+  // If no auth cookie, redirect to login
   if (!authCookie) {
-    // Prevent redirect loops by checking if we're already redirecting
-    const isRedirecting = 
-      request.headers.get('x-middleware-rewrite') || 
-      request.headers.get('x-middleware-next') ||
-      request.headers.get('x-middleware-redirect') ||
-      request.headers.get('x-auth-redirect');
-                          
-    if (isRedirecting) {
-      // If we're already in a redirect, just continue to prevent loops
-      console.log('Middleware: Preventing redirect loop');
+    // Check if we already have a redirect header to prevent loops
+    const hasRedirectHeader = request.headers.get('x-middleware-redirect');
+    if (hasRedirectHeader) {
+      console.log('Middleware: Preventing redirect loop - already redirecting');
       return NextResponse.next();
     }
     
-    // Check if we're coming from the login page to prevent loops
+    // Check referer to avoid redirecting from login page back to itself
     const referer = request.headers.get('referer') || '';
     if (referer.includes('/login')) {
-      console.log('Middleware: Coming from login page, preventing redirect loop');
+      console.log('Middleware: Skipping redirect - coming from login page');
       return NextResponse.next();
     }
     
-    // Check if we have a recent redirect cookie to prevent loops
+    // Check for recent redirect cookie to prevent loops
     const recentRedirect = request.cookies.get('recent-redirect');
     if (recentRedirect) {
-      console.log('Middleware: Recent redirect detected, preventing loop');
-      // Continue but clear the cookie
+      // Clear the cookie and skip the redirect
       const response = NextResponse.next();
       response.cookies.delete('recent-redirect');
       return response;
     }
     
-    const url = new URL('/login', request.url);
-    // Encode the pathname to handle special characters
-    url.searchParams.set('redirect', encodeURIComponent(pathname));
+    // Construct redirect URL
+    const encodedPathname = encodeURIComponent(pathname);
+    const redirectUrl = new URL(`/login?redirect=${encodedPathname}`, request.url);
     
-    const response = NextResponse.redirect(url);
-    // Add headers to indicate this is a middleware redirect
-    response.headers.set('x-middleware-redirect', 'true');
-    response.headers.set('x-auth-redirect', 'true');
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    // Create redirect response
+    const response = NextResponse.redirect(redirectUrl);
     
     // Set a cookie to track recent redirects (expires in 3 seconds)
     response.cookies.set('recent-redirect', 'true', { 
       maxAge: 3,
       path: '/',
+      httpOnly: true,
+      sameSite: 'strict'
     });
+    
+    // Set headers to indicate this is a middleware redirect
+    response.headers.set('x-middleware-redirect', 'true');
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
     
     return response;
   }
-
-  // If auth cookie exists, allow access to protected routes
+  
+  // User is authenticated, allow access
   return NextResponse.next();
 }
 
-// Configure which paths the middleware should run on
+// Configure middleware to run on specific paths
 export const config = {
   matcher: [
     /*
      * Match all request paths except:
-     * 1. _next/static (static files)
-     * 2. _next/image (image optimization files)
-     * 3. favicon.ico (favicon file)
-     * 4. public folder
+     * 1. /api/auth/* (authentication routes)
+     * 2. /_next/* (Next.js internals)
+     * 3. /_static/* (static files)
+     * 4. /_vercel/* (Vercel internals)
+     * 5. /favicon.ico, /sitemap.xml, /robots.txt (common static files)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.svg$).*)',
+    '/((?!_next|_static|_vercel|favicon.ico|sitemap.xml|robots.txt).*)',
   ],
 }; 

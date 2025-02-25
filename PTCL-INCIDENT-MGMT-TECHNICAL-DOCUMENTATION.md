@@ -2,144 +2,135 @@
 
 ## Project Overview
 
-The PTCL Incident Management System is a Next.js application designed to track and manage network incidents for Pakistan Telecommunication Company Limited (PTCL). The system allows authorized users to create, track, and report on various types of network faults, including GPON (Gigabit Passive Optical Network) and Switch/Metro faults.
+The PTCL Incident Management System is a Next.js application designed to manage network incidents for Pakistan Telecommunication Company Limited (PTCL). The system allows authorized users to create, track, and manage network incidents, while also providing a public view of active faults.
 
 ### Key Features
 
-- **User Authentication**: Secure login system with role-based access
-- **Incident Creation**: Forms for creating single, multiple, and GPON-specific faults
-- **Active Fault Monitoring**: Real-time view of ongoing incidents
-- **Reporting**: Generate and view reports on historical incidents
-- **Public Access**: Limited view of active faults for unauthenticated users
-- **Knowledge Base**: Repository of troubleshooting information
+- **User Authentication**: Secure login system with role-based access control
+- **Incident Creation**: Create and manage network incidents with detailed information
+- **Active Fault Monitoring**: Public and internal views of active network faults
+- **Reporting**: Generate reports on incidents and network performance
+- **Public Access**: Limited public access to view active faults without authentication
+- **Knowledge Base**: Repository of common issues and solutions
 
 ### Technology Stack
 
-- **Frontend**: Next.js 14 (App Router)
-- **Styling**: Tailwind CSS
+- **Frontend Framework**: Next.js 14 (App Router)
+- **UI Framework**: Tailwind CSS
 - **Database**: Firebase Firestore
-- **Authentication**: Custom authentication using Firebase Firestore and bcryptjs
-- **Hosting**: Firebase Hosting
-- **CI/CD**: GitHub Actions
+- **Authentication**: Custom authentication system with session management
+- **Deployment**: GitHub Actions for CI/CD
 
 ## Authentication System
 
-The PTCL Incident Management System implements a robust authentication system with the following features:
-
 ### Session Management
 
-1. **Session Persistence**: Authentication state is maintained using both cookies and sessionStorage to ensure consistent behavior across the application.
-   - `sessionStorage` is used for client-side authentication state
-   - HTTP-only cookies are used for server-side authentication verification
+1. **Session Duration**: 24 hours
+2. **Storage Mechanism**: Uses both sessionStorage and HTTP-only cookies
+3. **Cross-Tab Synchronization**: Login/logout events are synchronized across browser tabs
+4. **Automatic Logout**: Sessions expire after 24 hours of inactivity
+5. **Redirect Protection**: Multiple safeguards to prevent infinite redirect loops
 
-2. **Session Duration**: User sessions are valid for 24 hours, after which users are automatically logged out and required to authenticate again.
+### Redirect Protection Mechanisms
 
-3. **Cross-Tab Synchronization**: The system implements cross-tab authentication synchronization, ensuring that logging out in one tab logs the user out across all open tabs of the application.
+The system implements several safeguards to prevent infinite redirect loops:
 
-4. **Automatic Logout**: When a session expires or authentication fails, users are automatically redirected to the login page.
+1. **Cooldown Periods**:
+   - `AUTH_OPERATION_COOLDOWN`: 1000ms between authentication operations
+   - `AUTH_OPERATION_TIMEOUT`: 10000ms timeout for auth operations
+   - `REDIRECT_COOLDOWN`: 2000ms between redirects
+   - `REDIRECT_TIMEOUT`: 800ms timeout for redirect execution
+   - `LOGIN_REDIRECT_DELAY`: 800ms delay after successful login before redirect
 
-5. **Redirect Protection**: The system implements safeguards against infinite redirect loops by:
-   - Using a cooldown period between authentication operations (1000ms)
-   - Adding redirect attempt tracking and limiting maximum redirect attempts
-   - Implementing timeout delays for state updates (300-500ms)
-   - Adding comprehensive error handling and logging
-   - Using header flags to prevent middleware redirect loops
-   - Tracking redirect state with a dedicated redirecting flag
-   - Implementing a safe redirect function with built-in safeguards
-   - Checking referrer headers to prevent loops from login page
-   - Using sessionStorage flags to track redirect sources
-   - Implementing a pending redirect queue to handle multiple redirect requests
-   - Using cookies to track recent redirects and prevent loops
-   - Adding path checking to avoid unnecessary redirects to the current path
-   - Implementing grace periods after redirects to prevent immediate rechecks
+2. **Redirect Attempt Tracking**:
+   - Maximum redirect attempts (3) before requiring manual navigation
+   - Tracking of redirect attempts in state and sessionStorage
+
+3. **Timeout Delays**:
+   - Delays between authentication state changes and redirects
+   - Timeouts to prevent rapid successive redirects
+
+4. **Error Handling**:
+   - Automatic reset of stuck authentication operation flags
+   - Deadlock prevention with timeout-based resets
+
+5. **SessionStorage Flags**:
+   - Tracking of redirect sources, times, and attempts
+   - Flags to prevent processing the same redirect multiple times
+
+6. **Middleware Safeguards**:
+   - Cookie-based tracking of recent redirects
+   - Referer checking to prevent redirect loops
+   - Headers to track middleware redirects
 
 ### Authentication Flow
 
-1. **Login Process**:
-   - User enters credentials on the login page
-   - Credentials are validated against the Firebase Firestore database
-   - Upon successful validation, authentication data is stored in sessionStorage and cookies
-   - User is redirected to the requested page or the home page
+#### Login Process
+1. User enters credentials on the login page
+2. Credentials are validated against the Firebase Firestore database
+3. On successful validation, authentication data is stored in sessionStorage and cookies
+4. Authentication change is broadcast to all tabs
+5. User is redirected to the requested page or home page
 
-2. **Authentication Verification**:
-   - Server-side middleware checks for the presence of authentication cookies on each request
-   - Client-side context provider verifies authentication state on component mount and route changes
-   - If authentication is invalid, user is redirected to the login page
+#### Authentication Verification
+1. On page load, the system checks for authentication data in sessionStorage and cookies
+2. If authentication data exists, it verifies that the session hasn't expired
+3. If the session is valid, the user is allowed to access protected routes
+4. If the session is invalid or expired, the user is redirected to the login page
 
-3. **Logout Process**:
-   - User clicks logout or session expires
-   - Authentication data is cleared from sessionStorage and cookies
-   - Authentication state change is broadcast to all open tabs
-   - User is redirected to the login page
+#### Logout Process
+1. User initiates logout or session expires
+2. Authentication data is cleared from sessionStorage and cookies
+3. Logout event is broadcast to all tabs
+4. User is redirected to the login page
 
 ### Implementation Details
 
-1. **AuthContext**: A React context provider that manages authentication state and provides authentication methods to components.
-   - Implements state management for authentication status
-   - Provides login and logout functions
-   - Handles redirects based on authentication state
-   - Uses initialization flags and cooldown periods to prevent redirect loops
-   - Implements a safe redirect function with built-in safeguards
-   - Tracks redirecting state to prevent multiple simultaneous redirects
-   - Maintains a queue of pending redirects to handle multiple redirect requests
-   - Implements path checking to avoid unnecessary redirects
-   - Uses sessionStorage flags to track redirect sources and timing
-   - Implements grace periods after redirects to prevent immediate rechecks
+#### AuthContext
+- Provides authentication state and functions to the entire application
+- Manages authentication state changes and redirects
+- Implements safeguards against redirect loops
+- Handles cross-tab synchronization of authentication state
 
-2. **authService**: A service module that handles authentication operations.
-   - Manages authentication data storage and retrieval
-   - Implements cross-tab communication
-   - Provides utility functions for authentication operations
-   - Includes safeguards against rapid authentication operations
-   - Implements cooldown periods between authentication checks
-   - Uses simplified cookie values to prevent size issues
-   - Implements multiple cookie clearing strategies for reliable logout
+#### authService
+- Centralizes authentication logic
+- Manages authentication data storage and retrieval
+- Implements throttling to prevent rapid authentication operations
+- Provides functions for login, logout, and authentication checks
 
-3. **Middleware**: Next.js middleware that protects routes based on authentication status.
-   - Checks for authentication cookies on each request
-   - Redirects unauthenticated users to the login page
-   - Includes special handling to prevent redirect loops
-   - Uses custom headers to track redirect status
-   - Checks referrer headers to prevent loops from login page
-   - Implements more precise route matching for public routes
-   - Uses cookies to track recent redirects and prevent loops
-   - Implements cookie clearing for expired redirect tracking
+#### Middleware
+- Protects routes that require authentication
+- Redirects unauthenticated users to the login page
+- Implements safeguards to prevent redirect loops
+- Handles static assets and public routes
 
-4. **Login Page**: The login component implements several safeguards against redirect loops.
-   - Tracks redirect attempts and limits maximum redirects
-   - Implements cooldown periods between redirects
-   - Uses sessionStorage flags to indicate redirect source
-   - Resets redirect flags after delays to allow for retries if needed
-   - Suspense boundaries to prevent hydration errors
-   - Tracks login attempt timing to ensure state updates complete before redirects
-   - Implements path checking to ensure redirects only happen from the login page
-   - Clears redirect flags on component mount and unmount
+#### Login Page
+- Provides user interface for authentication
+- Manages login state and error handling
+- Implements redirect logic after successful login
+- Includes safeguards against rapid redirects
 
-### Security Considerations
+## Security Considerations
 
-1. **Password Hashing**: User passwords are hashed using bcrypt before storage in the database.
+### Password Security
+- Passwords are hashed using bcrypt before storage
+- Password comparison is done securely without exposing the original password
 
-2. **Session Storage**: Authentication data is stored in sessionStorage, which is cleared when the browser is closed.
+### Session Security
+- Authentication data is stored in both sessionStorage and HTTP-only cookies
+- Session expiration is enforced on both client and server
+- Sessions are invalidated on logout or expiration
 
-3. **Cookie Security**: Authentication cookies use the SameSite=Strict attribute to prevent CSRF attacks.
+### CSRF Protection
+- Implements SameSite cookie attributes
+- Uses HTTP-only cookies for sensitive data
+- Validates authentication on both client and server
 
-4. **CSRF Protection**: The application implements CSRF protection through SameSite cookies and proper authentication checks.
-
-5. **Redirect Loop Prevention**: The system includes multiple safeguards to prevent infinite redirect loops:
-   - Cooldown periods between authentication operations (1000-1500ms)
-   - Timeout delays for state updates (500-800ms)
-   - Tracking of redirect attempts with maximum limits (3 attempts)
-   - Header-based redirect detection in middleware
-   - Referrer checking to prevent loops from login page
-   - Dedicated redirecting state flag to prevent simultaneous redirects
-   - Pending redirect queue to handle multiple redirect requests
-   - Path checking to avoid unnecessary redirects to the current path
-   - Cookies to track recent redirects (3-second expiry)
-   - Grace periods after redirects (2 seconds) to prevent immediate rechecks
-   - Login attempt timing tracking to ensure state updates complete before redirects
-   - Comprehensive error handling and logging
-   - Simplified cookie values to prevent size issues
-   - Multiple cookie clearing strategies for reliable logout
+### Redirect Loop Prevention
+- Multiple layers of protection against infinite redirect loops
+- Cooldown periods between redirects
+- Maximum redirect attempt limits
+- Tracking of redirect sources and times
 
 ## Routing & Navigation
 
@@ -380,7 +371,7 @@ The application includes client-side service modules:
 ### Authentication Security
 
 1. **Password Security**:
-   - Passwords are hashed using bcryptjs before storage
+   - Passwords are hashed using bcrypt before storage
    - Password comparison is done securely without exposing the hash
 
 2. **Route Protection**:

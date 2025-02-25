@@ -12,6 +12,7 @@ export const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 let authOperationInProgress = false;
 let lastAuthOperation = 0;
 const AUTH_OPERATION_COOLDOWN = 1000; // 1000ms cooldown between auth operations
+const AUTH_OPERATION_TIMEOUT = 10000; // 10 seconds timeout for auth operations
 
 // Track last auth check to prevent rapid checks
 let lastAuthCheck = 0;
@@ -29,8 +30,15 @@ export interface AuthData {
  * Login user with username and password
  */
 export const loginUser = async (username: string, password: string): Promise<AuthData> => {
+  // Force reset the lock if it's been too long (prevents deadlocks)
+  const now = Date.now();
+  if (authOperationInProgress && now - lastAuthOperation > AUTH_OPERATION_TIMEOUT) {
+    console.warn('Auth operation lock timed out, resetting');
+    authOperationInProgress = false;
+  }
+  
   // Prevent rapid login attempts
-  if (isAuthOperationInProgress()) {
+  if (authOperationInProgress) {
     console.warn('Login operation already in progress, please wait');
     throw new Error('Login operation already in progress, please wait');
   }
@@ -39,6 +47,13 @@ export const loginUser = async (username: string, password: string): Promise<Aut
   
   try {
     const trimmedUsername = username.trim();
+    
+    // Check if already logged in with the same username
+    const currentAuth = getAuthData();
+    if (currentAuth?.isAuthenticated && currentAuth.username === trimmedUsername) {
+      console.log('Already logged in as', trimmedUsername);
+      return currentAuth;
+    }
     
     // Clear any existing auth data before attempting login
     clearAuthData();
@@ -91,8 +106,15 @@ export const loginUser = async (username: string, password: string): Promise<Aut
  * Logout user and clear all auth data
  */
 export const logoutUser = (): void => {
+  // Force reset the lock if it's been too long (prevents deadlocks)
+  const now = Date.now();
+  if (authOperationInProgress && now - lastAuthOperation > AUTH_OPERATION_TIMEOUT) {
+    console.warn('Auth operation lock timed out, resetting');
+    authOperationInProgress = false;
+  }
+  
   // Prevent rapid logout attempts
-  if (isAuthOperationInProgress()) {
+  if (authOperationInProgress) {
     console.warn('Logout operation already in progress, please wait');
     return;
   }
@@ -119,10 +141,15 @@ export const logoutUser = (): void => {
  */
 const isAuthOperationInProgress = (): boolean => {
   const now = Date.now();
-  if (authOperationInProgress && now - lastAuthOperation < AUTH_OPERATION_COOLDOWN) {
-    return true;
+  
+  // Auto-reset the lock if it's been too long (prevents deadlocks)
+  if (authOperationInProgress && now - lastAuthOperation > AUTH_OPERATION_TIMEOUT) {
+    console.warn('Auth operation lock timed out, resetting');
+    authOperationInProgress = false;
+    return false;
   }
-  return false;
+  
+  return authOperationInProgress;
 };
 
 /**
@@ -331,6 +358,9 @@ export const checkAuthOnLoad = (): boolean => {
  */
 export const initAuth = (onAuthChange: (action: 'login' | 'logout') => void): () => void => {
   try {
+    // Reset any stuck auth operation flags
+    authOperationInProgress = false;
+    
     // Check auth on load
     const isAuth = checkAuthOnLoad();
     
