@@ -1,104 +1,107 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Define public routes that don't require authentication
-const publicRoutes = [
-  '/login',
-  '/active-faults',
-  '/api/login'
+// List of public routes that don't require authentication
+const publicRoutes = ['/login', '/active-faults'];
+
+// List of protected routes that require authentication
+const protectedRoutes = [
+  '/',
+  '/home',
+  '/single-fault',
+  '/multiple-faults', 
+  '/gpon-faults',
+  '/reports',
+  '/gpon-reports',
+  '/knowledgebase'
 ];
 
-// Define static asset patterns
-const staticAssetPatterns = [
-  /\.(jpg|jpeg|png|gif|svg|ico|webp)$/,
-  /\.(css|js|json)$/,
-  /^\/favicon\.ico$/,
-  /^\/manifest\.json$/,
-  /^\/robots\.txt$/,
-  /^\/sitemap\.xml$/,
-  /^\/api\/(?!auth)/
-];
+// Helper function to clear auth cookies
+const clearAuthCookies = (response: NextResponse) => {
+  response.cookies.delete('auth');
+  return response;
+};
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  
-  // Skip middleware for public routes
-  if (publicRoutes.some(route => pathname === route || pathname.startsWith(`${route}/`))) {
-    return NextResponse.next();
-  }
-  
-  // Skip middleware for static assets
-  if (staticAssetPatterns.some(pattern => pattern.test(pathname))) {
-    return NextResponse.next();
-  }
-  
-  // Check for auth cookie
-  const authCookie = request.cookies.get('auth-session');
-  
-  // If no auth cookie, redirect to login
-  if (!authCookie) {
-    // Check if we already have a redirect header to prevent loops
-    const hasRedirectHeader = request.headers.get('x-middleware-redirect');
-    if (hasRedirectHeader) {
-      console.log('Middleware: Preventing redirect loop - already redirecting');
-      return NextResponse.next();
+  const { searchParams, origin } = request.nextUrl;
+
+  // Check if the path is protected
+  const isProtectedRoute = protectedRoutes.includes(pathname);
+  const isPublicRoute = publicRoutes.includes(pathname);
+
+  // Get auth cookie
+  const authCookie = request.cookies.get('auth');
+  let isAuthenticated = false;
+
+  // Verify authentication
+  if (authCookie?.value) {
+    try {
+      const authData = JSON.parse(authCookie.value);
+      isAuthenticated = authData.isAuthenticated && authData.username && authData.role;
+    } catch {
+      isAuthenticated = false;
     }
-    
-    // Check referer to avoid redirecting from login page back to itself
+  }
+
+  // For active-faults page, add a source parameter to track where the request came from
+  if (pathname === '/active-faults') {
+    // Check if this is a direct navigation (not from login or navbar)
     const referer = request.headers.get('referer') || '';
-    if (referer.includes('/login')) {
-      console.log('Middleware: Skipping redirect - coming from login page');
-      return NextResponse.next();
+    const isFromLogin = referer.includes('/login');
+    
+    // If not already in the URL and not a direct navigation from login, add source=navbar
+    if (!searchParams.has('source')) {
+      const newUrl = new URL(request.url);
+      newUrl.searchParams.set('source', isFromLogin ? 'login' : 'navbar');
+      return NextResponse.redirect(newUrl);
     }
     
-    // Check for recent redirect cookie to prevent loops
-    const recentRedirect = request.cookies.get('recent-redirect');
-    if (recentRedirect) {
-      // Clear the cookie and skip the redirect
-      const response = NextResponse.next();
-      response.cookies.delete('recent-redirect');
-      return response;
-    }
-    
-    // Construct redirect URL
-    const encodedPathname = encodeURIComponent(pathname);
-    const redirectUrl = new URL(`/login?redirect=${encodedPathname}`, request.url);
-    
-    // Create redirect response
-    const response = NextResponse.redirect(redirectUrl);
-    
-    // Set a cookie to track recent redirects (expires in 3 seconds)
-    response.cookies.set('recent-redirect', 'true', { 
-      maxAge: 3,
-      path: '/',
-      httpOnly: true,
-      sameSite: 'strict'
-    });
-    
-    // Set headers to indicate this is a middleware redirect
-    response.headers.set('x-middleware-redirect', 'true');
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    response.headers.set('Pragma', 'no-cache');
-    response.headers.set('Expires', '0');
-    
-    return response;
+    return NextResponse.next();
   }
-  
-  // User is authenticated, allow access
+
+  // Handle protected routes
+  if (isProtectedRoute) {
+    if (!isAuthenticated) {
+      const response = NextResponse.redirect(new URL('/login', request.url));
+      return clearAuthCookies(response);
+    }
+    return NextResponse.next();
+  }
+
+  // Handle login route
+  if (pathname === '/login') {
+    if (isAuthenticated) {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // Handle public routes
+  if (isPublicRoute) {
+    return NextResponse.next();
+  }
+
+  // For any other routes, redirect to login if not authenticated
+  if (!isAuthenticated) {
+    const response = NextResponse.redirect(new URL('/login', request.url));
+    return clearAuthCookies(response);
+  }
+
   return NextResponse.next();
 }
 
-// Configure middleware to run on specific paths
+// Configure paths that should be protected
 export const config = {
   matcher: [
     /*
      * Match all request paths except:
-     * 1. /api/auth/* (authentication routes)
-     * 2. /_next/* (Next.js internals)
-     * 3. /_static/* (static files)
-     * 4. /_vercel/* (Vercel internals)
-     * 5. /favicon.ico, /sitemap.xml, /robots.txt (common static files)
+     * 1. _next/static (static files)
+     * 2. _next/image (image optimization files)
+     * 3. favicon.ico (favicon file)
+     * 4. public folder
+     * 5. public assets
      */
-    '/((?!_next|_static|_vercel|favicon.ico|sitemap.xml|robots.txt).*)',
+    '/((?!_next/static|_next/image|favicon.ico|public|assets).*)',
   ],
 }; 

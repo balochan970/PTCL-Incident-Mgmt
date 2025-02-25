@@ -2,135 +2,68 @@
 
 ## Project Overview
 
-The PTCL Incident Management System is a Next.js application designed to manage network incidents for Pakistan Telecommunication Company Limited (PTCL). The system allows authorized users to create, track, and manage network incidents, while also providing a public view of active faults.
+The PTCL Incident Management System is a Next.js application designed to track and manage network incidents for Pakistan Telecommunication Company Limited (PTCL). The system allows authorized users to create, track, and report on various types of network faults, including GPON (Gigabit Passive Optical Network) and Switch/Metro faults.
 
 ### Key Features
 
-- **User Authentication**: Secure login system with role-based access control
-- **Incident Creation**: Create and manage network incidents with detailed information
-- **Active Fault Monitoring**: Public and internal views of active network faults
-- **Reporting**: Generate reports on incidents and network performance
-- **Public Access**: Limited public access to view active faults without authentication
-- **Knowledge Base**: Repository of common issues and solutions
+- **User Authentication**: Secure login system with role-based access
+- **Incident Creation**: Forms for creating single, multiple, and GPON-specific faults
+- **Active Fault Monitoring**: Real-time view of ongoing incidents
+- **Reporting**: Generate and view reports on historical incidents
+- **Public Access**: Limited view of active faults for unauthenticated users
+- **Knowledge Base**: Repository of troubleshooting information
 
 ### Technology Stack
 
-- **Frontend Framework**: Next.js 14 (App Router)
-- **UI Framework**: Tailwind CSS
+- **Frontend**: Next.js 14 (App Router)
+- **Styling**: Tailwind CSS
 - **Database**: Firebase Firestore
-- **Authentication**: Custom authentication system with session management
-- **Deployment**: GitHub Actions for CI/CD
+- **Authentication**: Custom authentication using Firebase Firestore and bcryptjs
+- **Hosting**: Firebase Hosting
+- **CI/CD**: GitHub Actions
 
 ## Authentication System
 
-### Session Management
-
-1. **Session Duration**: 24 hours
-2. **Storage Mechanism**: Uses both sessionStorage and HTTP-only cookies
-3. **Cross-Tab Synchronization**: Login/logout events are synchronized across browser tabs
-4. **Automatic Logout**: Sessions expire after 24 hours of inactivity
-5. **Redirect Protection**: Multiple safeguards to prevent infinite redirect loops
-
-### Redirect Protection Mechanisms
-
-The system implements several safeguards to prevent infinite redirect loops:
-
-1. **Cooldown Periods**:
-   - `AUTH_OPERATION_COOLDOWN`: 1000ms between authentication operations
-   - `AUTH_OPERATION_TIMEOUT`: 10000ms timeout for auth operations
-   - `REDIRECT_COOLDOWN`: 2000ms between redirects
-   - `REDIRECT_TIMEOUT`: 800ms timeout for redirect execution
-   - `LOGIN_REDIRECT_DELAY`: 800ms delay after successful login before redirect
-
-2. **Redirect Attempt Tracking**:
-   - Maximum redirect attempts (3) before requiring manual navigation
-   - Tracking of redirect attempts in state and sessionStorage
-
-3. **Timeout Delays**:
-   - Delays between authentication state changes and redirects
-   - Timeouts to prevent rapid successive redirects
-
-4. **Error Handling**:
-   - Automatic reset of stuck authentication operation flags
-   - Deadlock prevention with timeout-based resets
-
-5. **SessionStorage Flags**:
-   - Tracking of redirect sources, times, and attempts
-   - Flags to prevent processing the same redirect multiple times
-
-6. **Middleware Safeguards**:
-   - Cookie-based tracking of recent redirects
-   - Referer checking to prevent redirect loops
-   - Headers to track middleware redirects
-
 ### Authentication Flow
 
-#### Login Process
-1. User enters credentials on the login page
-2. Credentials are validated against the Firebase Firestore database
-3. On successful validation, authentication data is stored in sessionStorage and cookies
-4. Authentication change is broadcast to all tabs
-5. User is redirected to the requested page or home page
+1. **Login Process**:
+   - User enters username and password on the login page
+   - Credentials are verified against the `auth_users` collection in Firestore
+   - Password comparison is done using bcryptjs
+   - Upon successful authentication, user data is stored in both localStorage and cookies
 
-#### Authentication Verification
-1. On page load, the system checks for authentication data in sessionStorage and cookies
-2. If authentication data exists, it verifies that the session hasn't expired
-3. If the session is valid, the user is allowed to access protected routes
-4. If the session is invalid or expired, the user is redirected to the login page
+2. **Authentication State Management**:
+   - Authentication state is maintained through both localStorage and HTTP-only cookies
+   - The middleware checks for the presence and validity of the auth cookie on protected routes
+   - Session expiry is set to 24 hours from login
 
-#### Logout Process
-1. User initiates logout or session expires
-2. Authentication data is cleared from sessionStorage and cookies
-3. Logout event is broadcast to all tabs
-4. User is redirected to the login page
+3. **Logout Process**:
+   - Clears authentication data from localStorage and cookies
+   - Redirects to the login page
 
-### Implementation Details
+### Authentication Code Implementation
 
-#### AuthContext
-- Provides authentication state and functions to the entire application
-- Manages authentication state changes and redirects
-- Implements safeguards against redirect loops
-- Handles cross-tab synchronization of authentication state
+The authentication system is implemented across several files:
 
-#### authService
-- Centralizes authentication logic
-- Manages authentication data storage and retrieval
-- Implements throttling to prevent rapid authentication operations
-- Provides functions for login, logout, and authentication checks
+- `app/login/page.tsx`: Handles the login form and authentication logic
+- `middleware.ts`: Protects routes and enforces authentication
+- `lib/utils/password.ts`: Provides password hashing and comparison utilities
 
-#### Middleware
-- Protects routes that require authentication
-- Redirects unauthenticated users to the login page
-- Implements safeguards to prevent redirect loops
-- Handles static assets and public routes
+Password comparison is handled securely:
 
-#### Login Page
-- Provides user interface for authentication
-- Manages login state and error handling
-- Implements redirect logic after successful login
-- Includes safeguards against rapid redirects
+```typescript
+// lib/utils/password.ts
+import bcryptjs from 'bcryptjs';
 
-## Security Considerations
+export const hashPassword = async (password: string): Promise<string> => {
+  const salt = await bcryptjs.genSalt(10);
+  return bcryptjs.hash(password, salt);
+};
 
-### Password Security
-- Passwords are hashed using bcrypt before storage
-- Password comparison is done securely without exposing the original password
-
-### Session Security
-- Authentication data is stored in both sessionStorage and HTTP-only cookies
-- Session expiration is enforced on both client and server
-- Sessions are invalidated on logout or expiration
-
-### CSRF Protection
-- Implements SameSite cookie attributes
-- Uses HTTP-only cookies for sensitive data
-- Validates authentication on both client and server
-
-### Redirect Loop Prevention
-- Multiple layers of protection against infinite redirect loops
-- Cooldown periods between redirects
-- Maximum redirect attempt limits
-- Tracking of redirect sources and times
+export const comparePassword = async (password: string, hash: string): Promise<boolean> => {
+  return bcryptjs.compare(password, hash);
+};
+```
 
 ## Routing & Navigation
 
@@ -165,11 +98,6 @@ Route protection is implemented in the `middleware.ts` file, which:
 3. Redirects unauthenticated users to the login page when they attempt to access protected routes
 4. Allows access to public routes without authentication
 5. Redirects authenticated users away from the login page
-6. Implements safeguards to prevent redirect loops:
-   - Checks for redirect headers to prevent multiple redirects
-   - Checks referrer headers to prevent loops from the login page
-   - Uses cookies to track recent redirects with a short expiry (3 seconds)
-   - Clears redirect tracking cookies after use
 
 ```typescript
 // Excerpt from middleware.ts
@@ -371,7 +299,7 @@ The application includes client-side service modules:
 ### Authentication Security
 
 1. **Password Security**:
-   - Passwords are hashed using bcrypt before storage
+   - Passwords are hashed using bcryptjs before storage
    - Password comparison is done securely without exposing the hash
 
 2. **Route Protection**:

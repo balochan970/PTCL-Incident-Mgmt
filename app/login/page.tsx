@@ -1,227 +1,173 @@
 "use client";
-import React, { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth } from '@/lib/AuthContext';
-import Image from 'next/image';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebaseConfig';
+import { comparePassword } from '@/lib/utils/password';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import Link from 'next/link';
 
-// Constants for redirect handling
-const REDIRECT_COOLDOWN = 2000; // 2 seconds between redirects
-const MAX_REDIRECT_ATTEMPTS = 3; // Maximum number of redirect attempts
-const LOGIN_REDIRECT_DELAY = 800; // Delay after successful login before redirect
-
-// Loading component for the login page
-const LoginPageLoading = () => (
-  <div className="flex min-h-screen flex-col items-center justify-center bg-gray-100">
-    <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
-      <div className="flex justify-center">
-        <div className="animate-pulse h-12 w-32 bg-gray-300 rounded"></div>
-      </div>
-      <div className="space-y-4">
-        <div className="animate-pulse h-10 bg-gray-300 rounded"></div>
-        <div className="animate-pulse h-10 bg-gray-300 rounded"></div>
-        <div className="animate-pulse h-10 bg-gray-300 rounded"></div>
-      </div>
-    </div>
-  </div>
-);
-
-// Client component that uses useSearchParams
-const LoginForm = () => {
+export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [redirectAttempts, setRedirectAttempts] = useState(0);
-  
-  const { login, isAuthenticated, loading, error, initialized } = useAuth();
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
-  const searchParams = useSearchParams();
-  
-  // Handle redirect after successful login
+
+  // Clear any existing auth data on component mount
   useEffect(() => {
-    // Skip if not initialized, still loading, or not authenticated
-    if (!initialized || loading) {
-      return;
-    }
+    // Ensure complete logout by clearing both localStorage and cookies
+    localStorage.removeItem('auth');
+    document.cookie = 'auth=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0; domain=' + window.location.hostname;
     
-    // If authenticated, prepare to redirect
-    if (isAuthenticated) {
-      console.log('User authenticated, preparing redirect');
-      
-      // Get redirect path from URL parameters
-      const redirectTo = searchParams?.get('redirect') || '/';
-      const decodedRedirect = decodeURIComponent(redirectTo);
-      
-      // Check if we've exceeded max redirect attempts
-      if (redirectAttempts >= MAX_REDIRECT_ATTEMPTS) {
-        console.warn(`Exceeded maximum redirect attempts (${MAX_REDIRECT_ATTEMPTS})`);
-        setErrorMessage('Too many redirect attempts. Please try navigating manually.');
-        
-        // Reset redirect attempts after a cooldown
-        setTimeout(() => {
-          setRedirectAttempts(0);
-          sessionStorage.removeItem('loginRedirectAttempts');
-        }, REDIRECT_COOLDOWN * 2);
-        
-        return;
-      }
-      
-      // Check if we're in a cooldown period
-      const lastRedirectStr = sessionStorage.getItem('lastLoginRedirect');
-      if (lastRedirectStr) {
-        const lastRedirect = parseInt(lastRedirectStr, 10);
-        const now = Date.now();
-        
-        if (now - lastRedirect < REDIRECT_COOLDOWN) {
-          console.log('In redirect cooldown period, waiting...');
-          return;
-        }
-      }
-      
-      // Set redirect flag and increment attempts
-      sessionStorage.setItem('lastLoginRedirect', Date.now().toString());
-      const newAttempts = redirectAttempts + 1;
-      setRedirectAttempts(newAttempts);
-      sessionStorage.setItem('loginRedirectAttempts', newAttempts.toString());
-      
-      console.log(`Redirecting to ${decodedRedirect} after login (attempt ${newAttempts})`);
-      
-      // Use a timeout to allow state to settle before redirect
-      setTimeout(() => {
-        router.push(decodedRedirect);
-      }, LOGIN_REDIRECT_DELAY);
-    }
-  }, [isAuthenticated, loading, initialized, router, searchParams, redirectAttempts]);
-  
-  // Load saved redirect attempts on mount
-  useEffect(() => {
-    try {
-      const savedAttempts = sessionStorage.getItem('loginRedirectAttempts');
-      if (savedAttempts) {
-        setRedirectAttempts(parseInt(savedAttempts, 10));
-      }
-    } catch (e) {
-      console.error('Error loading redirect attempts from sessionStorage:', e);
+    // Also clear any session storage that might contain auth data
+    sessionStorage.clear();
+    
+    // Force reload if coming from a protected page to ensure clean state
+    const fromProtected = sessionStorage.getItem('fromProtected');
+    if (fromProtected) {
+      sessionStorage.removeItem('fromProtected');
+      window.location.reload();
     }
   }, []);
-  
-  // Handle login form submission
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (isLoading) return;
-    
-    setErrorMessage('');
-    setIsLoading(true);
-    
+    setError('');
+    setLoading(true);
+
+    // Clear any existing auth data before attempting login
+    localStorage.removeItem('auth');
+    document.cookie = 'auth=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0; domain=' + window.location.hostname;
+
+    const trimmedUsername = username.trim();
+
     try {
-      // Validate input
-      if (!username.trim() || !password.trim()) {
-        setErrorMessage('Please enter both username and password');
-        setIsLoading(false);
+      const authUsersRef = collection(db, 'auth_users');
+      const q = query(authUsersRef, where('username', '==', trimmedUsername));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        setError('Invalid username or password');
+        setLoading(false);
         return;
       }
+
+      const userDoc = querySnapshot.docs[0];
+      const userData = userDoc.data();
+
+      const isValidPassword = await comparePassword(password, userData.password);
+
+      if (!isValidPassword) {
+        setError('Invalid username or password');
+        setLoading(false);
+        return;
+      }
+
+      const authData = {
+        username: userData.username,
+        role: userData.role,
+        isAuthenticated: true,
+        timestamp: new Date().getTime() // Add timestamp for session expiry checks
+      };
       
-      console.log('Attempting login for user:', username);
-      await login(username, password);
-      
-      // The redirect will be handled by the useEffect above
+      localStorage.setItem('auth', JSON.stringify(authData));
+      document.cookie = `auth=${JSON.stringify(authData)}; path=/; max-age=86400; samesite=strict`; // 24 hours
+
+      // Use replace instead of push to prevent back navigation to login
+      router.replace('/');
     } catch (err) {
       console.error('Login error:', err);
-      setErrorMessage(error || 'Login failed. Please check your credentials and try again.');
+      setError('An error occurred during login. Please try again.');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
-  
+
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-100">
-      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
-        <div className="flex justify-center">
-          <Image
-            src="/ptcl-logo.png"
-            alt="PTCL Logo"
-            width={150}
-            height={50}
-            priority
-          />
+    <div className="min-h-screen flex items-center justify-center bg-[#FFF8E8]">
+      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-lg border-2 border-[#D4C9A8]">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-[#4A4637]">
+            ROC Incident Management
+          </h2>
+          <p className="mt-2 text-center text-sm text-[#635C48]">
+            "Please sign in to continue"
+          </p>
         </div>
-        <h2 className="mt-6 text-center text-2xl font-bold text-gray-900">
-          Incident Management System
-        </h2>
-        
-        {errorMessage && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-            <span className="block sm:inline">{errorMessage}</span>
-          </div>
-        )}
-        
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="username" className="sr-only">Username</label>
+          <div className="rounded-md -space-y-px">
+            <div className="mb-4">
+              <label htmlFor="username" className="block text-sm font-medium text-[#4A4637] mb-1">
+                Username
+              </label>
               <input
                 id="username"
                 name="username"
                 type="text"
-                autoComplete="username"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Username"
+                className="appearance-none relative block w-full px-3 py-2 border border-[#D4C9A8] placeholder-[#AAB396] text-[#4A4637] rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A4637] focus:border-[#4A4637] sm:text-sm bg-[#FFF8E8]"
+                placeholder="Enter your username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                disabled={isLoading}
               />
             </div>
             <div>
-              <label htmlFor="password" className="sr-only">Password</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading}
-              />
+              <label htmlFor="password" className="block text-sm font-medium text-[#4A4637] mb-1">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  className="appearance-none relative block w-full px-3 py-2 border border-[#D4C9A8] placeholder-[#AAB396] text-[#4A4637] rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A4637] focus:border-[#4A4637] sm:text-sm bg-[#FFF8E8]"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#4A4637] hover:text-[#635C48] focus:outline-none"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <FaEyeSlash size={16} /> : <FaEye size={16} />}
+                </button>
+              </div>
             </div>
           </div>
-          
+
+          {error && (
+            <div className="text-red-600 text-sm text-center bg-red-50 p-2 rounded">
+              {error}
+            </div>
+          )}
+
           <div>
             <button
               type="submit"
-              disabled={isLoading}
-              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
-                isLoading ? 'bg-indigo-400' : 'bg-indigo-600 hover:bg-indigo-700'
-              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
+              disabled={loading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#4A4637] hover:bg-[#635C48] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#4A4637] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Signing in...
-                </>
-              ) : (
-                'Sign in'
-              )}
+              {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </div>
         </form>
+
+        <div className="mt-8 pt-6 border-t-2 border-[#D4C9A8]">
+          <Link 
+            href="/active-faults?source=login" 
+            className="block w-full text-center py-3 px-4 rounded-lg bg-white border-2 border-[#4A4637] text-[#4A4637] hover:bg-[#4A4637] hover:text-white transition-all duration-200 shadow-md"
+          >
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-xl">📊</span>
+              <span className="font-medium">View Active Faults</span>
+            </div>
+          </Link>
+        </div>
       </div>
     </div>
-  );
-};
-
-// Export the main component with Suspense fallback
-export default function LoginPage() {
-  return (
-    <Suspense fallback={<LoginPageLoading />}>
-      <LoginForm />
-    </Suspense>
   );
 } 
