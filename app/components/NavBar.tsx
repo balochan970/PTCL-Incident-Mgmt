@@ -1,10 +1,63 @@
 "use client";
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+
+// Helper function to verify authentication
+const verifyAuthentication = (): boolean => {
+  const auth = localStorage.getItem('auth');
+  const authCookie = document.cookie.includes('auth=');
+  
+  if (!auth || !authCookie) return false;
+  
+  try {
+    const authData = JSON.parse(auth);
+    const now = new Date().getTime();
+    const timestamp = authData.timestamp || 0;
+    const expiryTime = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    
+    return (
+      authData.isAuthenticated && 
+      authData.username && 
+      authData.role &&
+      (now - timestamp <= expiryTime)
+    );
+  } catch {
+    return false;
+  }
+};
 
 export default function NavBar({ topOffset = '0px' }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = () => {
+      const isAuth = verifyAuthentication();
+      setIsAuthenticated(isAuth);
+      
+      if (!isAuth) {
+        // Clear auth data and redirect to login
+        localStorage.removeItem('auth');
+        document.cookie = 'auth=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0; domain=' + window.location.hostname;
+        router.replace('/login');
+      }
+    };
+
+    checkAuth();
+    
+    // Check authentication status periodically
+    const interval = setInterval(checkAuth, 60000); // Check every minute
+    
+    return () => clearInterval(interval);
+  }, [router]);
+
   const isActive = (path: string) => pathname === path;
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <nav className="nav-container" style={{ top: topOffset }}>

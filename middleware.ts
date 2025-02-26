@@ -22,27 +22,42 @@ const clearAuthCookies = (response: NextResponse) => {
   return response;
 };
 
+// Helper function to verify authentication
+const verifyAuthentication = (authCookie: { value: string } | undefined): boolean => {
+  if (!authCookie?.value) return false;
+  
+  try {
+    const authData = JSON.parse(authCookie.value);
+    const now = new Date().getTime();
+    const timestamp = authData.timestamp || 0;
+    const expiryTime = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    
+    return (
+      authData.isAuthenticated && 
+      authData.username && 
+      authData.role &&
+      (now - timestamp <= expiryTime)
+    );
+  } catch {
+    return false;
+  }
+};
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const { searchParams, origin } = request.nextUrl;
+  const { searchParams } = request.nextUrl;
 
   // Check if the path is protected
-  const isProtectedRoute = protectedRoutes.includes(pathname);
-  const isPublicRoute = publicRoutes.includes(pathname);
+  const isProtectedRoute = protectedRoutes.some(route => 
+    pathname === route || pathname.startsWith(`${route}/`)
+  );
+  const isPublicRoute = publicRoutes.some(route => 
+    pathname === route || pathname.startsWith(`${route}/`)
+  );
 
-  // Get auth cookie
+  // Get auth cookie and verify authentication
   const authCookie = request.cookies.get('auth');
-  let isAuthenticated = false;
-
-  // Verify authentication
-  if (authCookie?.value) {
-    try {
-      const authData = JSON.parse(authCookie.value);
-      isAuthenticated = authData.isAuthenticated && authData.username && authData.role;
-    } catch {
-      isAuthenticated = false;
-    }
-  }
+  const isAuthenticated = verifyAuthentication(authCookie);
 
   // For active-faults page, add a source parameter to track where the request came from
   if (pathname === '/active-faults') {
