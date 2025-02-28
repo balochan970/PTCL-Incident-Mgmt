@@ -1,7 +1,7 @@
 {
   "hosting": {
     "target": "rocktr2",
-    "public": ".next",
+    "public": ".next/static",
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -9,8 +9,12 @@
     ],
     "rewrites": [
       {
+        "source": "/_next/**",
+        "destination": "/_next/**"
+      },
+      {
         "source": "**",
-        "destination": "/server/index.js"
+        "destination": "/index.html"
       }
     ],
     "cleanUrls": true,

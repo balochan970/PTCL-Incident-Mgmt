@@ -4,6 +4,7 @@ const nextConfig = {
   images: {
     unoptimized: true
   },
+  output: 'export',
   distDir: '.next',
   trailingSlash: false,
   basePath: '',
