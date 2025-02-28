@@ -6,9 +6,7 @@ const nextConfig = {
   },
   output: 'export',
   distDir: '.next',
-  trailingSlash: false,
-  basePath: '',
-  assetPrefix: ''
+  trailingSlash: false
 }
 
 module.exports = nextConfig 

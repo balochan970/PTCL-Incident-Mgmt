@@ -1,7 +1,7 @@
 {
   "hosting": {
     "target": "rocktr2",
-    "public": ".next/static",
+    "public": "out",
     "ignore": [
       "firebase.json",
       "**/.*",
