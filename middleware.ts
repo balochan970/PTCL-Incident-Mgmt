@@ -13,7 +13,8 @@ const protectedRoutes = [
   '/gpon-faults',
   '/reports',
   '/gpon-reports',
-  '/knowledgebase'
+  '/knowledgebase',
+  '/fault-locations'
 ];
 
 // Helper function to clear auth cookies
