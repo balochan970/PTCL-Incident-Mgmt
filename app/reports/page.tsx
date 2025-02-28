@@ -27,6 +27,7 @@ import TableHeader from '../components/TableHeader';
 import { useTableColumns } from '../hooks/useTableColumns';
 import LocationField from '../components/LocationField';
 import { Location } from '@/lib/utils/location';
+import { Incident } from '../types/incident';
 
 // Register ChartJS components
 ChartJS.register(
@@ -40,27 +41,6 @@ ChartJS.register(
   ArcElement,
   ChartDataLabels
 );
-
-interface Incident {
-  id: string;
-  incidentNumber: string;
-  exchangeName: string;
-  faultType: string;
-  equipmentType: string;
-  domain: string;
-  nodes: any;
-  outageNodes?: any;
-  stakeholders?: string[];
-  ticketGenerator: string;
-  timestamp: Timestamp;
-  faultEndTime?: Timestamp;
-  status: string;
-  closedBy?: string;
-  remarks?: string;
-  location?: Location | null;
-  locationUpdatedAt?: string;
-  [key: string]: any;
-}
 
 const morningTeamMembers = [
   'A. Rehman Splicer',
@@ -732,7 +712,7 @@ export default function ReportsPage() {
         'Equipment Type': incident.equipmentType,
       'Fault Type': incident.faultType,
       'Nodes': `${incident.nodes.nodeA} → ${incident.nodes.nodeB}`,
-        'Stakeholders': incident.stakeholders.join(', '),
+        'Stakeholders': incident.stakeholders?.join(', ') || '-',
         'Ticket Generator': incident.ticketGenerator,
       'Start Time': incident.timestamp.toDate().toLocaleString(),
       'End Time': incident.faultEndTime ? incident.faultEndTime.toDate().toLocaleString() : '-',

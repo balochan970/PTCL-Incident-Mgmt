@@ -11,6 +11,7 @@ import {
 } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
 import { format, subDays, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { Incident } from '../types/incident';
 
 ChartJS.register(
   ArcElement,
@@ -21,19 +22,6 @@ ChartJS.register(
   Tooltip,
   Legend
 );
-
-interface Incident {
-  id: string;
-  incidentNumber: string;
-  domain: string;
-  faultType: string;
-  equipmentType: string;
-  exchangeName: string;
-  outageNodes: Record<string, boolean>;
-  timestamp: any;
-  faultEndTime?: any;
-  status: string;
-}
 
 interface FaultAnalyticsProps {
   incidents: Incident[];
@@ -90,7 +78,7 @@ export default function FaultAnalytics({ incidents }: FaultAnalyticsProps) {
       case 'nodes':
         // Filter to only show incidents with outage nodes
         filtered = filtered.filter(incident => 
-          Object.values(incident.outageNodes).some(isOutage => isOutage)
+          incident.outageNodes && Object.values(incident.outageNodes).some(isOutage => isOutage)
         );
         break;
     }
@@ -123,14 +111,16 @@ export default function FaultAnalytics({ incidents }: FaultAnalyticsProps) {
       }
 
       // Track node frequencies
-      Object.entries(incident.outageNodes).forEach(([node, isOutage]) => {
-        if (isOutage) {
-          nodeFrequency[node] = (nodeFrequency[node] || 0) + 1;
-        }
-      });
+      if (incident.outageNodes) {
+        Object.entries(incident.outageNodes).forEach(([node, isOutage]) => {
+          if (isOutage) {
+            nodeFrequency[node] = (nodeFrequency[node] || 0) + 1;
+          }
+        });
+      }
 
       // Count outages
-      if (Object.values(incident.outageNodes).some(isOutage => isOutage)) {
+      if (incident.outageNodes && Object.values(incident.outageNodes).some(isOutage => isOutage)) {
         totalOutages++;
       }
 
@@ -291,6 +281,23 @@ export default function FaultAnalytics({ incidents }: FaultAnalyticsProps) {
       setTimeRange('custom');
       setShowCustomRange(false);
     }
+  };
+
+  const getOutageNodesCount = (incident: Incident) => {
+    if (!incident.outageNodes) return 0;
+    return Object.values(incident.outageNodes).filter(Boolean).length;
+  };
+
+  const getTotalNodesCount = (incident: Incident) => {
+    if (!incident.outageNodes) return 0;
+    return Object.values(incident.outageNodes).length;
+  };
+
+  const getOutagePercentage = (incident: Incident) => {
+    if (!incident.outageNodes) return 0;
+    const outageCount = Object.entries(incident.outageNodes).filter(([_, isOutage]) => isOutage).length;
+    const totalNodes = Object.keys(incident.outageNodes).length;
+    return totalNodes > 0 ? (outageCount / totalNodes) * 100 : 0;
   };
 
   return (

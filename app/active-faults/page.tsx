@@ -57,6 +57,10 @@ function ActiveFaultsContent() {
   const [faults, setFaults] = useState<Fault[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState<{
+    key: string;
+    direction: 'asc' | 'desc';
+  }>({ key: 'timestamp', direction: 'desc' });
   const router = useRouter();
   const searchParams = useSearchParams();
   const source = searchParams.get('source') || 'navbar';
@@ -155,6 +159,69 @@ function ActiveFaultsContent() {
     }
   };
 
+  const handleSort = (key: string) => {
+    setSortConfig((prevConfig) => ({
+      key,
+      direction:
+        prevConfig.key === key && prevConfig.direction === 'asc' ? 'desc' : 'asc',
+    }));
+
+    const sortedFaults = [...faults].sort((a, b) => {
+      let aValue = a[key as keyof Fault];
+      let bValue = b[key as keyof Fault];
+
+      // Handle nested properties for nodes
+      if (key === 'nodes') {
+        aValue = `${a.nodeA || ''} ${a.nodeB || ''}`.trim();
+        bValue = `${b.nodeA || ''} ${b.nodeB || ''}`.trim();
+      }
+
+      // Handle FAT values
+      if (key === 'fats') {
+        aValue = a.fats?.[0]?.value || '';
+        bValue = b.fats?.[0]?.value || '';
+      }
+
+      // Handle FSP values
+      if (key === 'fsps') {
+        aValue = a.fsps?.[0]?.value || '';
+        bValue = b.fsps?.[0]?.value || '';
+      }
+
+      // Handle timestamp separately
+      if (key === 'timestamp') {
+        const dateA = a.timestamp?.toDate?.() || new Date(0);
+        const dateB = b.timestamp?.toDate?.() || new Date(0);
+        return sortConfig.direction === 'asc'
+          ? dateA.getTime() - dateB.getTime()
+          : dateB.getTime() - dateA.getTime();
+      }
+
+      // Handle string comparison
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortConfig.direction === 'asc'
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
+
+      // Handle undefined values
+      if (aValue === undefined) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (bValue === undefined) return sortConfig.direction === 'asc' ? 1 : -1;
+
+      // Default comparison
+      return sortConfig.direction === 'asc'
+        ? (aValue > bValue ? 1 : -1)
+        : (bValue > aValue ? 1 : -1);
+    });
+
+    setFaults(sortedFaults);
+  };
+
+  const getSortIndicator = (key: string) => {
+    if (sortConfig.key !== key) return '↕';
+    return sortConfig.direction === 'asc' ? '↑' : '↓';
+  };
+
   return (
     <div className="min-h-screen bg-[#FFF8E8]">
       {!isFromLogin && <NavBar topOffset="0px" />}
@@ -225,25 +292,85 @@ function ActiveFaultsContent() {
                 <table className="w-full">
                   <thead>
                     <tr className="bg-[#4A4637] text-white">
-                      <th className="px-4 py-3 text-left">Ticket #</th>
-                      <th className="px-4 py-3 text-left">Fault Occurred</th>
+                      <th 
+                        className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                        onClick={() => handleSort('incidentNumber')}
+                      >
+                        Ticket # {getSortIndicator('incidentNumber')}
+                      </th>
+                      <th 
+                        className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                        onClick={() => handleSort('timestamp')}
+                      >
+                        Fault Occurred {getSortIndicator('timestamp')}
+                      </th>
                       {activeTab === 'gpon' ? (
                         <>
-                          <th className="px-4 py-3 text-left">Exchange</th>
-                          <th className="px-4 py-3 text-left">FDH</th>
-                          <th className="px-4 py-3 text-left">FAT</th>
-                          <th className="px-4 py-3 text-left">OLT IP</th>
-                          <th className="px-4 py-3 text-left">F/S/P</th>
+                          <th 
+                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                            onClick={() => handleSort('exchangeName')}
+                          >
+                            Exchange {getSortIndicator('exchangeName')}
+                          </th>
+                          <th 
+                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                            onClick={() => handleSort('fdh')}
+                          >
+                            FDH {getSortIndicator('fdh')}
+                          </th>
+                          <th 
+                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                            onClick={() => handleSort('fats')}
+                          >
+                            FAT {getSortIndicator('fats')}
+                          </th>
+                          <th 
+                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                            onClick={() => handleSort('oltIp')}
+                          >
+                            OLT IP {getSortIndicator('oltIp')}
+                          </th>
+                          <th 
+                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                            onClick={() => handleSort('fsps')}
+                          >
+                            F/S/P {getSortIndicator('fsps')}
+                          </th>
                         </>
                       ) : (
                         <>
-                          <th className="px-4 py-3 text-left">Domain</th>
-                          <th className="px-4 py-3 text-left">Exchange</th>
-                          <th className="px-4 py-3 text-left">Fault Type</th>
-                          <th className="px-4 py-3 text-left">Nodes</th>
+                          <th 
+                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                            onClick={() => handleSort('domain')}
+                          >
+                            Domain {getSortIndicator('domain')}
+                          </th>
+                          <th 
+                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                            onClick={() => handleSort('exchangeName')}
+                          >
+                            Exchange {getSortIndicator('exchangeName')}
+                          </th>
+                          <th 
+                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                            onClick={() => handleSort('faultType')}
+                          >
+                            Fault Type {getSortIndicator('faultType')}
+                          </th>
+                          <th 
+                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                            onClick={() => handleSort('nodes')}
+                          >
+                            Nodes {getSortIndicator('nodes')}
+                          </th>
                         </>
                       )}
-                      <th className="px-4 py-3 text-left">Status</th>
+                      <th 
+                        className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                        onClick={() => handleSort('status')}
+                      >
+                        Status {getSortIndicator('status')}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>

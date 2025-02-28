@@ -8,23 +8,13 @@ import NavBar from '../components/NavBar';
 import { Location, DEFAULT_CENTER } from '@/lib/utils/location';
 import { exchanges } from '@/lib/utils/exchanges';
 import '../styles/globals.css';
+import { Incident } from '../types/incident';
 
 // Dynamically import the Map component to avoid SSR issues with Leaflet
 const Map = dynamic(() => import('../components/Map'), {
   ssr: false,
   loading: () => <div className="h-[500px] bg-gray-100 animate-pulse rounded-lg"></div>
 });
-
-interface Incident {
-  id: string;
-  incidentNumber: string;
-  exchangeName: string;
-  faultType: string;
-  status: string;
-  timestamp: Timestamp;
-  location?: Location;
-  [key: string]: any;
-}
 
 export default function FaultLocationsPage() {
   const [incidentType, setIncidentType] = useState<'gpon' | 'switch' | null>(null);

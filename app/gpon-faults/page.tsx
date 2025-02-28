@@ -521,7 +521,7 @@ export default function GPONFaultsPage() {
               ))}
             </div>
 
-            <div className="flex justify-between mt-20">
+            <div className="flex justify-between items-center mt-20">
               <button
                 type="button"
                 className="btn btn-primary"
@@ -530,17 +530,15 @@ export default function GPONFaultsPage() {
                <span className="icon">➕</span>
                Add Fault
               </button>
-              <div className="form-actions mt-20">
-                <button
-                  type="submit"
-                  className="btn btn-success"
-                  disabled={faults.length === 0 || isSubmitting}
-                  ref={submitButtonRef}
-                >
-                  <span className="icon">📝</span>
-                  {isSubmitting ? 'Submitting...' : 'Submit Incidents'}
-                </button>
-              </div>
+              <button
+                type="submit"
+                className="btn btn-success"
+                disabled={faults.length === 0 || isSubmitting}
+                ref={submitButtonRef}
+              >
+                <span className="icon">📝</span>
+                {isSubmitting ? 'Submitting...' : 'Submit Incidents'}
+              </button>
             </div>
 
             {/* Display submission error if any */}
