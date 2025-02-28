@@ -4,10 +4,14 @@ const nextConfig = {
   images: {
     unoptimized: true
   },
+  output: 'standalone',
   trailingSlash: false,
   distDir: '.next',
   basePath: '',
-  assetPrefix: ''
+  assetPrefix: '',
+  experimental: {
+    serverActions: true
+  }
 }
 
 module.exports = nextConfig 
