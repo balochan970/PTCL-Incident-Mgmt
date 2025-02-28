@@ -9,6 +9,21 @@ const COORDINATES_REGEX = /^(-?\d+\.\d+),\s*(-?\d+\.\d+)$/;
 const SHORT_URL_REGEX = /maps\.app\.goo\.gl|goo\.gl/;
 const SHARE_URL_REGEX = /maps\.google\.com\/maps\?q=(-?\d+\.\d+),(-?\d+\.\d+)|google\.com\/maps\/place\/[^@]*@(-?\d+\.\d+),(-?\d+\.\d+)/;
 
+const expandUrl = async (url: string): Promise<string> => {
+  try {
+    const response = await fetch(url, {
+      redirect: 'follow',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
+    return response.url;
+  } catch (error) {
+    console.error('Error expanding URL:', error);
+    return url;
+  }
+};
+
 export async function parseLocation(input: string): Promise<Location | null> {
   console.log('Attempting to parse location from input:', input);
   
@@ -29,19 +44,19 @@ export async function parseLocation(input: string): Promise<Location | null> {
     if (SHORT_URL_REGEX.test(input)) {
       console.log('Detected short URL format');
       try {
-        // Use our server-side endpoint to handle the URL expansion
-        const response = await fetch(`/api/expand-url?url=${encodeURIComponent(input)}`);
-        if (!response.ok) {
-          throw new Error('Failed to expand URL');
-        }
-        
-        const data = await response.json();
-        if (data.latitude && data.longitude) {
-          console.log('Found coordinates from expanded URL:', data.latitude, data.longitude);
-          return {
-            latitude: data.latitude,
-            longitude: data.longitude
-          };
+        const expandedUrl = await expandUrl(input);
+        // Try all patterns on the expanded URL
+        const patterns = [GOOGLE_MAPS_REGEX, SHARE_URL_REGEX];
+        for (const pattern of patterns) {
+          const matches = expandedUrl.match(pattern);
+          if (matches) {
+            const [_, lat, lng] = matches;
+            console.log('Found coordinates from expanded URL:', lat, lng);
+            return {
+              latitude: parseFloat(lat),
+              longitude: parseFloat(lng)
+            };
+          }
         }
       } catch (e) {
         console.error('Error handling short URL:', e);
