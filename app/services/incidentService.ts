@@ -1,6 +1,6 @@
 import { db } from '@/lib/firebaseConfig';
 import { collection, addDoc, doc, runTransaction, Timestamp, updateDoc } from 'firebase/firestore';
-import { Location, LocationUpdatePayload } from '../types/incident';
+import { Location } from '@/lib/utils/location';
 
 // Keep track of recent submissions to prevent duplicates on the client side
 const recentSubmissions = new Map<string, { timestamp: number, incidentNumber: string }>();
@@ -193,16 +193,14 @@ export async function createGPONIncidents(data: GPONIncidentData): Promise<strin
 
 export async function updateIncidentLocation(
   incidentId: string,
-  location: Location,
-  isGpon: boolean = false
+  isGpon: boolean,
+  location: Location | null
 ): Promise<void> {
-  const collectionName = isGpon ? 'gpon_incidents' : 'incidents';
+  const collectionName = isGpon ? 'gponIncidents' : 'incidents';
   const incidentRef = doc(db, collectionName, incidentId);
   
   await updateDoc(incidentRef, {
-    location: {
-      ...location,
-      updatedAt: new Date().getTime()
-    }
+    location: location || null,
+    locationUpdatedAt: new Date().toISOString()
   });
 } 

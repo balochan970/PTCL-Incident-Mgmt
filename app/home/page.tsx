@@ -116,6 +116,13 @@ export default function HomePage() {
             </div>
           </Link>
 
+          <Link href="/fault-locations" className="card">
+            <div className="card-content">
+              <div className="card-icon">🗺️</div>
+              <h2>Fault Locations</h2>
+            </div>
+          </Link>
+
           <Link href="/knowledgebase" className="card">
             <div className="card-content">
               <div className="card-icon">📚</div>

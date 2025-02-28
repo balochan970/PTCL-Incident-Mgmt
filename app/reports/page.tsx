@@ -25,6 +25,8 @@ import FaultAnalytics from '../components/FaultAnalytics';
 import NavBar from '../components/NavBar';
 import TableHeader from '../components/TableHeader';
 import { useTableColumns } from '../hooks/useTableColumns';
+import LocationField from '../components/LocationField';
+import { Location } from '@/lib/utils/location';
 
 // Register ChartJS components
 ChartJS.register(
@@ -46,25 +48,18 @@ interface Incident {
   faultType: string;
   equipmentType: string;
   domain: string;
-  nodes: {
-    nodeA: string;
-    nodeB: string;
-    nodeC?: string;
-    nodeD?: string;
-  };
-  outageNodes: {
-    nodeA: boolean;
-    nodeB: boolean;
-    nodeC: boolean;
-    nodeD: boolean;
-  };
-  stakeholders: string[];
+  nodes: any;
+  outageNodes?: any;
+  stakeholders?: string[];
   ticketGenerator: string;
   timestamp: Timestamp;
   faultEndTime?: Timestamp;
   status: string;
   closedBy?: string;
   remarks?: string;
+  location?: Location | null;
+  locationUpdatedAt?: string;
+  [key: string]: any;
 }
 
 const morningTeamMembers = [
@@ -143,11 +138,12 @@ const calculateOutageTime = (startTime: Timestamp, endTime: Timestamp | undefine
   return `${hours}h ${minutes}m`;
 };
 
-const ViewIncidentModal = ({ incident, onClose }: { incident: Incident; onClose: () => void }) => {
+const ViewIncidentModal = ({ incident, onClose, onUpdate }: { incident: Incident; onClose: () => void; onUpdate: () => Promise<void> }) => {
   const [editingRemarks, setEditingRemarks] = useState(false);
   const [remarksValue, setRemarksValue] = useState(incident.remarks || '');
   const [updatingRemarks, setUpdatingRemarks] = useState(false);
   const [currentIncident, setCurrentIncident] = useState(incident);
+  const [showLocationField, setShowLocationField] = useState(false);
 
   const handleRemarksUpdate = async () => {
     try {
@@ -169,6 +165,29 @@ const ViewIncidentModal = ({ incident, onClose }: { incident: Incident; onClose:
       console.error('Error updating remarks:', error);
     } finally {
       setUpdatingRemarks(false);
+    }
+  };
+
+  const handleLocationUpdate = async (location: Location | null) => {
+    try {
+      const incidentRef = doc(db, 'incidents', currentIncident.id);
+      await updateDoc(incidentRef, {
+        location: location || null,
+        locationUpdatedAt: new Date().toISOString()
+      });
+      
+      // Get the updated incident data
+      const updatedDoc = await getDoc(incidentRef);
+      if (updatedDoc.exists()) {
+        const updatedIncident = { id: updatedDoc.id, ...updatedDoc.data() } as Incident;
+        setCurrentIncident(updatedIncident);
+        await onUpdate();
+      }
+      
+      setShowLocationField(false);
+    } catch (error) {
+      console.error('Error updating location:', error);
+      alert('Failed to update location. Please try again.');
     }
   };
 
@@ -270,6 +289,41 @@ const ViewIncidentModal = ({ incident, onClose }: { incident: Incident; onClose:
               <span>{currentIncident.closedBy || '-'}</span>
             </div>
           )}
+          <div className="detail-row location-section">
+            <strong>Location:</strong>
+            <div className="location-content">
+              {showLocationField ? (
+                <LocationField
+                  initialLocation={currentIncident.location}
+                  onUpdate={handleLocationUpdate}
+                  onCancel={() => setShowLocationField(false)}
+                />
+              ) : (
+                <div className="location-display">
+                  {currentIncident.location ? (
+                    <>
+                      <span className="location-coordinates">
+                        {currentIncident.location.latitude}, {currentIncident.location.longitude}
+                      </span>
+                      {currentIncident.locationUpdatedAt && (
+                        <span className="location-timestamp">
+                          Last updated: {new Date(currentIncident.locationUpdatedAt).toLocaleString()}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="no-location">No location set</span>
+                  )}
+                  <button
+                    onClick={() => setShowLocationField(true)}
+                    className="location-btn"
+                  >
+                    {currentIncident.location ? 'Update Location' : 'Add Location'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -350,6 +404,54 @@ const ViewIncidentModal = ({ incident, onClose }: { incident: Incident; onClose:
         }
 
         .edit-btn:hover {
+          background-color: #0b7dda;
+        }
+
+        .location-section {
+          margin-top: 20px;
+          padding-top: 20px;
+          border-top: 1px solid #eee;
+        }
+
+        .location-content {
+          flex: 1;
+        }
+
+        .location-display {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          width: 100%;
+        }
+
+        .location-coordinates {
+          font-family: monospace;
+        }
+
+        .location-timestamp {
+          display: block;
+          font-size: 0.85em;
+          color: #666;
+          margin-top: 4px;
+        }
+
+        .no-location {
+          color: #666;
+          font-style: italic;
+        }
+
+        .location-btn {
+          padding: 6px 12px;
+          background-color: #2196F3;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 14px;
+          transition: background-color 0.2s;
+        }
+
+        .location-btn:hover {
           background-color: #0b7dda;
         }
       `}</style>
@@ -458,6 +560,8 @@ export default function ReportsPage() {
           status: data.status || 'Pending',
           closedBy: data.closedBy,
           remarks: data.remarks,
+          location: data.location,
+          locationUpdatedAt: data.locationUpdatedAt,
         };
       });
 
@@ -1017,6 +1121,7 @@ export default function ReportsPage() {
               setSelectedIncident(null);
               fetchIncidents();
             }}
+            onUpdate={fetchIncidents}
           />
         )}
 

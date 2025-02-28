@@ -24,6 +24,8 @@ import ChartDataLabels from 'chartjs-plugin-datalabels';
 import NavBar from '../components/NavBar';
 import TableHeader from '../components/TableHeader';
 import { useTableColumns } from '../hooks/useTableColumns';
+import LocationField from '../components/LocationField';
+import { Location } from '@/lib/utils/location';
 
 // Register ChartJS components
 ChartJS.register(
@@ -43,21 +45,20 @@ interface GPONIncident {
   incidentNumber: string;
   exchangeName: string;
   fdh: string;
-  fats: { id: string; value: string }[];
+  fats: Array<{ id: string; value: string }>;
   oltIp: string;
-  fsps: { id: string; value: string }[];
+  fsps: Array<{ id: string; value: string }>;
   isOutage: boolean;
+  remarks?: string;
   stakeholders: string[];
   ticketGenerator: string;
   timestamp: Timestamp;
   faultEndTime?: Timestamp;
   status: string;
   closedBy?: string;
-  remarks?: string;
-  equipmentType?: string;
-  domain?: string;
-  faultType?: string;
-  totalTime?: number;
+  location?: Location | null;
+  locationUpdatedAt?: string;
+  [key: string]: any;
 }
 
 interface SortConfig {
@@ -97,11 +98,12 @@ const columnKeyToIncidentKey: { [K in keyof ColumnKey]: K extends never ? never 
   actions: 'id' as never
 };
 
-const ViewIncidentModal = ({ incident, onClose }: { incident: GPONIncident; onClose: () => void }) => {
+const ViewIncidentModal = ({ incident, onClose, onUpdate }: { incident: GPONIncident; onClose: () => void; onUpdate: () => Promise<void> }) => {
   const [editingRemarks, setEditingRemarks] = useState(false);
   const [remarksValue, setRemarksValue] = useState(incident.remarks || '');
   const [updatingRemarks, setUpdatingRemarks] = useState(false);
   const [currentIncident, setCurrentIncident] = useState(incident);
+  const [showLocationField, setShowLocationField] = useState(false);
 
   const handleRemarksUpdate = async () => {
     try {
@@ -123,6 +125,29 @@ const ViewIncidentModal = ({ incident, onClose }: { incident: GPONIncident; onCl
       console.error('Error updating remarks:', error);
     } finally {
       setUpdatingRemarks(false);
+    }
+  };
+
+  const handleLocationUpdate = async (location: Location | null) => {
+    try {
+      const incidentRef = doc(db, 'gponIncidents', currentIncident.id);
+      await updateDoc(incidentRef, {
+        location: location || null,
+        locationUpdatedAt: new Date().toISOString()
+      });
+      
+      // Get the updated incident data
+      const updatedDoc = await getDoc(incidentRef);
+      if (updatedDoc.exists()) {
+        const updatedIncident = { id: updatedDoc.id, ...updatedDoc.data() } as GPONIncident;
+        setCurrentIncident(updatedIncident);
+        await onUpdate();
+      }
+      
+      setShowLocationField(false);
+    } catch (error) {
+      console.error('Error updating location:', error);
+      alert('Failed to update location. Please try again.');
     }
   };
 
@@ -234,6 +259,41 @@ const ViewIncidentModal = ({ incident, onClose }: { incident: GPONIncident; onCl
               <span>{currentIncident.closedBy}</span>
             </div>
           )}
+          <div className="detail-row location-section">
+            <strong>Location:</strong>
+            <div className="location-content">
+              {showLocationField ? (
+                <LocationField
+                  initialLocation={currentIncident.location}
+                  onUpdate={handleLocationUpdate}
+                  onCancel={() => setShowLocationField(false)}
+                />
+              ) : (
+                <div className="location-display">
+                  {currentIncident.location ? (
+                    <>
+                      <span className="location-coordinates">
+                        {currentIncident.location.latitude}, {currentIncident.location.longitude}
+                      </span>
+                      {currentIncident.locationUpdatedAt && (
+                        <span className="location-timestamp">
+                          Last updated: {new Date(currentIncident.locationUpdatedAt).toLocaleString()}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="no-location">No location set</span>
+                  )}
+                  <button
+                    onClick={() => setShowLocationField(true)}
+                    className="location-btn"
+                  >
+                    {currentIncident.location ? 'Update Location' : 'Add Location'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -316,6 +376,54 @@ const ViewIncidentModal = ({ incident, onClose }: { incident: GPONIncident; onCl
         .edit-btn:hover {
           background-color: #0b7dda;
         }
+
+        .location-section {
+          margin-top: 20px;
+          padding-top: 20px;
+          border-top: 1px solid #eee;
+        }
+
+        .location-content {
+          flex: 1;
+        }
+
+        .location-display {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          width: 100%;
+        }
+
+        .location-coordinates {
+          font-family: monospace;
+        }
+
+        .location-timestamp {
+          display: block;
+          font-size: 0.85em;
+          color: #666;
+          margin-top: 4px;
+        }
+
+        .no-location {
+          color: #666;
+          font-style: italic;
+        }
+
+        .location-btn {
+          padding: 6px 12px;
+          background-color: #2196F3;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 14px;
+          transition: background-color 0.2s;
+        }
+
+        .location-btn:hover {
+          background-color: #0b7dda;
+        }
       `}</style>
     </div>
   );
@@ -323,6 +431,7 @@ const ViewIncidentModal = ({ incident, onClose }: { incident: GPONIncident; onCl
 
 export default function GPONReportsPage() {
   const [incidents, setIncidents] = useState<GPONIncident[]>([]);
+  const [allIncidents, setAllIncidents] = useState<GPONIncident[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -332,7 +441,6 @@ export default function GPONReportsPage() {
   const [selectedIncidents, setSelectedIncidents] = useState<string[]>([]);
   const [selectedCloser, setSelectedCloser] = useState('');
   const [showCloserSelection, setShowCloserSelection] = useState(false);
-  const [allIncidents, setAllIncidents] = useState<GPONIncident[]>([]); // Store all incidents for client-side filtering
   const [editingTimestamp, setEditingTimestamp] = useState<string | null>(null);
   const [selectedTimestamp, setSelectedTimestamp] = useState<string>('');
 
@@ -370,9 +478,10 @@ export default function GPONReportsPage() {
 
   const { columns, handleColumnResize, getColumnWidth } = useTableColumns('gpon');
 
+  // Add useEffect to fetch incidents on mount
   useEffect(() => {
     fetchIncidents();
-  }, [timeRange, statusFilter]);
+  }, []); // Empty dependency array means it runs once on mount
 
   // Apply client-side filters
   useEffect(() => {
@@ -476,21 +585,6 @@ export default function GPONReportsPage() {
           where('timestamp', '>=', Timestamp.fromDate(startDate)),
           where('timestamp', '<=', Timestamp.fromDate(now))
         );
-      }
-
-      // Domain filter
-      if (filters.domain) {
-        queryConstraints.push(where('domain', '==', filters.domain));
-      }
-
-      // Equipment type filter
-      if (filters.equipmentType) {
-        queryConstraints.push(where('equipmentType', '==', filters.equipmentType));
-      }
-
-      // Fault type filter
-      if (filters.faultType) {
-        queryConstraints.push(where('faultType', '==', filters.faultType));
       }
 
       // Always add the orderBy constraint last
@@ -1002,13 +1096,11 @@ export default function GPONReportsPage() {
         </div>
 
         {/* Incident Details Modal */}
-        {selectedIncident && (
+        {showViewModal && selectedIncident && (
           <ViewIncidentModal
             incident={selectedIncident}
-            onClose={() => {
-              setSelectedIncident(null);
-              fetchIncidents(); // Refresh the incidents list when modal is closed
-            }}
+            onClose={() => setShowViewModal(false)}
+            onUpdate={fetchIncidents}
           />
         )}
 
@@ -1100,7 +1192,10 @@ export default function GPONReportsPage() {
         return (
           <button
             className="view-btn"
-            onClick={() => setSelectedIncident(incident)}
+            onClick={() => {
+              setSelectedIncident(incident);
+              setShowViewModal(true);
+            }}
           >
             View
           </button>
