@@ -4,14 +4,10 @@ const nextConfig = {
   images: {
     unoptimized: true
   },
-  output: 'export',
   distDir: '.next',
   trailingSlash: false,
   basePath: '',
-  assetPrefix: '',
-  experimental: {
-    serverActions: true
-  }
+  assetPrefix: ''
 }
 
 module.exports = nextConfig 
