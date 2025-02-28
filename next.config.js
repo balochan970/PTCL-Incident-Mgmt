@@ -4,9 +4,9 @@ const nextConfig = {
   images: {
     unoptimized: true
   },
-  output: 'standalone',
+  output: 'export',
+  distDir: 'out',
   trailingSlash: false,
-  distDir: '.next',
   basePath: '',
   assetPrefix: '',
   experimental: {
