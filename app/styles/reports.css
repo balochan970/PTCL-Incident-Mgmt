@@ -689,4 +689,350 @@ th:hover .resize-handle {
     border-spacing: 0;
     transform: rotateX(180deg);
   }
+}
+
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  margin-top: 20px;
+  padding: 15px;
+  background-color: white;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.pagination-button {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  background-color: white;
+  color: #333;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pagination-button:hover:not(:disabled) {
+  background-color: #f0f0f0;
+  border-color: #aaa;
+}
+
+.pagination-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.entries-select {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  cursor: pointer;
+}
+
+.page-info {
+  margin: 0 10px;
+}
+
+/* Theme 1: Modern Blue (Default) */
+.theme-modern-blue th,
+.theme-modern-blue .pagination-controls {
+  background: linear-gradient(to bottom, #2c3e50, #2c3e50);
+  color: white;
+  font-weight: 600;
+  padding: 14px 12px;
+  border-bottom: 2px solid #34495e;
+  transition: background-color 0.2s;
+}
+
+.theme-modern-blue .pagination-button {
+  background: linear-gradient(to bottom, #2c3e50, #2c3e50);
+  color: white;
+  border: 1px solid #34495e;
+}
+
+.theme-modern-blue .pagination-button:hover:not(:disabled) {
+  background: linear-gradient(to bottom, #34495e, #34495e);
+}
+
+.theme-modern-blue .entries-select {
+  background: linear-gradient(to bottom, #2c3e50, #2c3e50);
+  color: white;
+  border: 1px solid #34495e;
+}
+
+/* Theme 2: Professional Gray */
+.theme-pro-gray th,
+.theme-pro-gray .pagination-controls {
+  background: linear-gradient(to bottom, #f8f9fa, #e9ecef);
+  color: #343a40;
+  font-weight: 600;
+  padding: 14px 12px;
+  border-bottom: 2px solid #dee2e6;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
+}
+
+.theme-pro-gray .pagination-button {
+  background: linear-gradient(to bottom, #f8f9fa, #e9ecef);
+  color: #343a40;
+  border: 1px solid #dee2e6;
+}
+
+.theme-pro-gray .pagination-button:hover:not(:disabled) {
+  background: linear-gradient(to bottom, #e9ecef, #dee2e6);
+}
+
+.theme-pro-gray .entries-select {
+  background: linear-gradient(to bottom, #f8f9fa, #e9ecef);
+  color: #343a40;
+  border: 1px solid #dee2e6;
+}
+
+/* Theme 3: Corporate Purple */
+.theme-corporate-purple th,
+.theme-corporate-purple .pagination-controls {
+  background: linear-gradient(to bottom, #5e4fb8, #4d4fb8);
+  color: white;
+  font-weight: 600;
+  padding: 14px 12px;
+  border-bottom: 2px solid #3f3f94;
+  text-shadow: 1px 1px 1px rgba(0,0,0,0.2);
+}
+
+.theme-corporate-purple .pagination-button {
+  background: linear-gradient(to bottom, #5e4fb8, #4d4fb8);
+  color: white;
+  border: 1px solid #3f3f94;
+}
+
+.theme-corporate-purple .pagination-button:hover:not(:disabled) {
+  background: linear-gradient(to bottom, #4d4fb8, #3f3f94);
+}
+
+.theme-corporate-purple .entries-select {
+  background: linear-gradient(to bottom, #5e4fb8, #4d4fb8);
+  color: white;
+  border: 1px solid #3f3f94;
+}
+
+/* Theme 4: Elegant Dark */
+.theme-elegant-dark th,
+.theme-elegant-dark .pagination-controls {
+  background: linear-gradient(to bottom, #343a40, #212529);
+  color: #ffffff;
+  font-weight: 600;
+  padding: 14px 12px;
+  border-bottom: 2px solid #495057;
+  text-shadow: 1px 1px 1px rgba(0,0,0,0.2);
+}
+
+.theme-elegant-dark .pagination-button {
+  background: linear-gradient(to bottom, #343a40, #212529);
+  color: white;
+  border: 1px solid #495057;
+}
+
+.theme-elegant-dark .pagination-button:hover:not(:disabled) {
+  background: linear-gradient(to bottom, #495057, #343a40);
+}
+
+.theme-elegant-dark .entries-select {
+  background: linear-gradient(to bottom, #343a40, #212529);
+  color: white;
+  border: 1px solid #495057;
+}
+
+/* Theme 5: Soft Green */
+.theme-soft-green th,
+.theme-soft-green .pagination-controls {
+  background: linear-gradient(to bottom, #52b788, #40916c);
+  color: white;
+  font-weight: 600;
+  padding: 14px 12px;
+  border-bottom: 2px solid #2d6a4f;
+  text-shadow: 1px 1px 1px rgba(0,0,0,0.1);
+}
+
+.theme-soft-green .pagination-button {
+  background: linear-gradient(to bottom, #52b788, #40916c);
+  color: white;
+  border: 1px solid #2d6a4f;
+}
+
+.theme-soft-green .pagination-button:hover:not(:disabled) {
+  background: linear-gradient(to bottom, #40916c, #2d6a4f);
+}
+
+.theme-soft-green .entries-select {
+  background: linear-gradient(to bottom, #52b788, #40916c);
+  color: white;
+  border: 1px solid #2d6a4f;
+}
+
+/* Theme 6: Warm Earth */
+.theme-warm-earth th,
+.theme-warm-earth .pagination-controls {
+  background: linear-gradient(to bottom, #ddbea9, #cb997e);
+  color: #3f3f3f;
+  font-weight: 600;
+  padding: 14px 12px;
+  border-bottom: 2px solid #b07d62;
+  text-shadow: 1px 1px 1px rgba(255,255,255,0.2);
+}
+
+.theme-warm-earth .pagination-button {
+  background: linear-gradient(to bottom, #ddbea9, #cb997e);
+  color: #3f3f3f;
+  border: 1px solid #b07d62;
+}
+
+.theme-warm-earth .pagination-button:hover:not(:disabled) {
+  background: linear-gradient(to bottom, #cb997e, #b07d62);
+}
+
+.theme-warm-earth .entries-select {
+  background: linear-gradient(to bottom, #ddbea9, #cb997e);
+  color: #3f3f3f;
+  border: 1px solid #b07d62;
+}
+
+/* Theme 7: Ocean Blue */
+.theme-ocean-blue th,
+.theme-ocean-blue .pagination-controls {
+  background: linear-gradient(to bottom, #0077b6, #0096c7);
+  color: white;
+  font-weight: 600;
+  padding: 14px 12px;
+  border-bottom: 2px solid #023e8a;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+.theme-ocean-blue .pagination-button {
+  background: linear-gradient(to bottom, #0077b6, #0096c7);
+  color: white;
+  border: 1px solid #023e8a;
+}
+
+.theme-ocean-blue .pagination-button:hover:not(:disabled) {
+  background: linear-gradient(to bottom, #0096c7, #023e8a);
+}
+
+.theme-ocean-blue .entries-select {
+  background: linear-gradient(to bottom, #0077b6, #0096c7);
+  color: white;
+  border: 1px solid #023e8a;
+}
+
+/* Theme 8: Classic Enterprise */
+.theme-classic-enterprise th,
+.theme-classic-enterprise .pagination-controls {
+  background: #ffffff;
+  color: #2c3e50;
+  font-weight: 600;
+  padding: 14px 12px;
+  border-bottom: 2px solid #3498db;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.theme-classic-enterprise .pagination-button {
+  background: #ffffff;
+  color: #2c3e50;
+  border: 1px solid #3498db;
+}
+
+.theme-classic-enterprise .pagination-button:hover:not(:disabled) {
+  background: #f8f9fa;
+  border-bottom: 2px solid #2980b9;
+}
+
+.theme-classic-enterprise .entries-select {
+  background: #ffffff;
+  color: #2c3e50;
+  border: 1px solid #3498db;
+}
+
+/* Update pagination controls to match themes */
+.pagination-controls {
+  border-radius: 0 0 8px 8px;
+  margin-top: 0;
+  transition: all 0.2s ease;
+}
+
+.pagination-button {
+  transition: all 0.2s ease;
+  font-weight: 600;
+}
+
+.pagination-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.entries-select {
+  transition: all 0.2s ease;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+
+.entries-select option {
+  background: white;
+  color: #333;
+}
+
+/* Make the pagination text match the theme colors */
+.pagination-info {
+  color: inherit;
+  font-weight: 600;
+}
+
+/* Common styles for all themes */
+th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+/* Sort icons styling for all themes */
+th .sort-icon {
+  margin-left: 5px;
+  opacity: 0.7;
+  vertical-align: middle;
+}
+
+th:hover .sort-icon {
+  opacity: 1;
+}
+
+/* Active sort column styling */
+th.active-sort {
+  font-weight: 700;
+}
+
+/* Resize handle styling */
+.resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: rgba(255,255,255,0.1);
+  cursor: col-resize;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+th:hover .resize-handle {
+  opacity: 1;
 } 

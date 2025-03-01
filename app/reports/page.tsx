@@ -20,7 +20,7 @@ import {
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { Bar, Pie } from 'react-chartjs-2';
-import { FaSort, FaSortUp, FaSortDown, FaDownload, FaFilter } from 'react-icons/fa';
+import { FaSort, FaSortUp, FaSortDown, FaDownload, FaFilter, FaFileExcel } from 'react-icons/fa';
 import FaultAnalytics from '../components/FaultAnalytics';
 import NavBar from '../components/NavBar';
 import TableHeader from '../components/TableHeader';
@@ -468,6 +468,9 @@ export default function ReportsPage() {
   const [editingTimestamp, setEditingTimestamp] = useState<string | null>(null);
   const [selectedTimestamp, setSelectedTimestamp] = useState<string>('');
   const { columns, handleColumnResize, getColumnWidth } = useTableColumns('regular');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [tableTheme, setTableTheme] = useState('theme-modern-blue');
 
   useEffect(() => {
     fetchIncidents();
@@ -870,6 +873,14 @@ export default function ReportsPage() {
     }
   };
 
+  const getPaginatedData = () => {
+    const sortedData = getSortedIncidents();
+    const startIndex = (currentPage - 1) * entriesPerPage;
+    return sortedData.slice(startIndex, startIndex + entriesPerPage);
+  };
+
+  const totalPages = Math.ceil(getSortedIncidents().length / entriesPerPage);
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -895,21 +906,23 @@ export default function ReportsPage() {
       <div className="reports-container" style={{ paddingTop: '32px' }}>
       <div className="header">
         <div className="title-section">
-      <h1>Incident Reports</h1>
+          <h1>Incident Reports</h1>
           <Link href="/">
             <button style={{
               backgroundColor: '#4d4fb8',
               color: '#ffffff',
               padding: '15px 30px',
-          borderRadius: '5px',
-          border: 'none',
-          cursor: 'pointer',
-              fontSize: '16px'
+              borderRadius: '5px',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '16px',
+              marginTop: '10px'
             }}>
               Back to Home
             </button>
           </Link>
         </div>
+
         <div className="chart-section">
           <div className="mini-chart">
             <Pie 
@@ -934,47 +947,89 @@ export default function ReportsPage() {
                     font: {
                       size: 12
                     }
+                  },
+                  datalabels: {
+                    display: true,
+                    color: '#fff',
+                    font: {
+                      weight: 'bold',
+                      size: 14
                     },
-                    datalabels: {
-                      display: true,
-                      color: '#fff',
-                      font: {
-                        weight: 'bold',
-                        size: 14
-                      },
-                      formatter: (value) => value
+                    formatter: (value) => value
                   }
                 },
               }} 
             />
           </div>
         </div>
+
         <div className="actions">
-      <button
+          <button
             className="action-btn"
             onClick={() => setShowAnalytics(true)}
-        style={{
+            style={{
               backgroundColor: '#007bff',
-          color: '#ffffff',
+              color: '#ffffff',
               padding: '8px 16px',
               borderRadius: '4px',
-          border: 'none',
-          cursor: 'pointer',
+              border: 'none',
+              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '8px'
-        }}
-      >
-              <span className="icon">📊</span>Fault Analytics
+            }}
+          >
+            <span className="icon">📊</span>Fault Analytics
           </button>
           <button className="action-btn" onClick={() => setShowFilters(!showFilters)}>
             <FaFilter /> Filters
-      </button>
+          </button>
           <button className="action-btn" onClick={exportToExcel}>
             <FaDownload /> Export to Excel
-        </button>
+          </button>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '15px',
+            marginTop: '10px',
+            width: '100%'
+          }}>
+            <label htmlFor="theme-select" style={{ 
+              fontWeight: 700, 
+              color: '#000000',
+              fontSize: '15px'
+            }}>
+              Table Theme:
+            </label>
+            <select
+              id="theme-select"
+              value={tableTheme}
+              onChange={(e) => setTableTheme(e.target.value)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '4px',
+                border: '1px solid #ddd',
+                backgroundColor: 'white',
+                color: '#000000',
+                cursor: 'pointer',
+                fontWeight: 600,
+                minWidth: '150px'
+              }}
+            >
+              <option value="theme-modern-blue">Modern Blue</option>
+              <option value="theme-pro-gray">Professional Gray</option>
+              <option value="theme-corporate-purple">Corporate Purple</option>
+              <option value="theme-elegant-dark">Elegant Dark</option>
+              <option value="theme-soft-green">Soft Green</option>
+              <option value="theme-warm-earth">Warm Earth</option>
+              <option value="theme-ocean-blue">Ocean Blue</option>
+              <option value="theme-classic-enterprise">Classic Enterprise</option>
+            </select>
+          </div>
         </div>
       </div>
+
+     
 
       {showFilters && (
         <div className="filters">
@@ -1042,8 +1097,8 @@ export default function ReportsPage() {
         </div>
       )}
 
-      <div className="table-container">
-        <table>
+      <div className={`table-container ${tableTheme}`}>
+        <table className={tableTheme}>
           <thead>
             <tr>
                 {columns.map((column, index) => (
@@ -1072,7 +1127,7 @@ export default function ReportsPage() {
             </tr>
           </thead>
           <tbody>
-            {getSortedIncidents().map((incident) => (
+            {getPaginatedData().map((incident) => (
               <tr key={incident.id}>
                   {columns.map((column) => (
                     <td 
@@ -1091,6 +1146,46 @@ export default function ReportsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Add pagination controls */}
+        <div className={`pagination-controls ${tableTheme}`}>
+          <div className="pagination-info">
+            <span>Show</span>
+            <select 
+              className="entries-select"
+              value={entriesPerPage}
+              onChange={(e) => {
+                setEntriesPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+            >
+              {[5,10, 25, 50, 100].map(value => (
+                <option key={value} value={value}>{value}</option>
+              ))}
+            </select>
+            <span>entries</span>
+          </div>
+
+          <div className="pagination-info">
+            <button
+              className="pagination-button"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </button>
+            <span className="page-info">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              className="pagination-button"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </button>
+          </div>
         </div>
 
         {/* Incident Details Modal */}
@@ -1121,33 +1216,6 @@ export default function ReportsPage() {
             </div>
           </div>
         )}
-
-        <style jsx>{`
-          .custom-range-controls {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-          }
-
-          .datetime-input-container {
-            position: relative;
-          }
-
-          .datetime-input-container input {
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            color: #000000;
-            font-weight: 500;
-          }
-
-          @media (max-width: 768px) {
-            .custom-range-controls {
-              flex-direction: column;
-              width: 100%;
-            }
-          }
-        `}</style>
       </div>
     </>
   );

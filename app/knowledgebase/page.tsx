@@ -2,7 +2,7 @@
 import '../styles/globals.css';
 import Link from 'next/link';
 import { useState, useEffect, JSX } from 'react';
-import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, deleteDoc, doc, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebaseConfig';
 import { hashPassword } from '../../lib/utils/password';
 import ContactsSection from '../components/ContactsSection';
@@ -13,18 +13,12 @@ import CustomListSection from '../components/CustomListSection';
 import Modal from '../components/Modal';
 import { read, utils } from 'xlsx';
 import NavBar from '../components/NavBar';
+import { BulkActions } from './components/BulkActions';
+import { useToast } from "@/components/ui/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Contact } from './types';
 
 // Interfaces for different data types
-interface Contact {
-  id: string;
-  name: string;
-  number: string;
-  backupNumber?: string;
-  exchangeName: string;
-  supervisorName: string;
-  remarks?: string;
-}
-
 interface FiberPath {
   id: string;
   linkName: string;
@@ -135,7 +129,32 @@ export default function KnowledgeBasePage(): JSX.Element {
 
   // State for search and filters
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterValue, setFilterValue] = useState('all');
+
+  // Section-specific filter states
+  const [contactFilters, setContactFilters] = useState({
+    column: 'department' as keyof Contact,
+    value: 'all'
+  });
+
+  const [fiberPathFilters, setFiberPathFilters] = useState({
+    column: 'nodeASectionOwner' as keyof FiberPath,
+    value: 'all'
+  });
+
+  const [codeFilters, setCodeFilters] = useState({
+    column: 'equipmentName' as keyof Code,
+    value: 'all'
+  });
+
+  const [credentialFilters, setCredentialFilters] = useState({
+    column: 'type' as keyof Credential,
+    value: 'all'
+  });
+
+  // Add state for selected contacts
+  const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
+
+  const { toast } = useToast();
 
   // Get the current section's data length
   const getCurrentDataLength = () => {
@@ -623,35 +642,180 @@ export default function KnowledgeBasePage(): JSX.Element {
     { id: 'customList', label: 'Custom List' }
   ];
 
-  // Filter data based on search query
-  const getFilteredData = () => {
-    const query = searchQuery.toLowerCase();
+  // Get filter options based on active section
+  const getFilterOptions = () => {
+    const values = new Set<string>();
+    
     switch (activeSection) {
       case 'contacts':
-        return contacts.filter(contact => 
-          contact.name.toLowerCase().includes(query) ||
-          contact.exchangeName.toLowerCase().includes(query)
-        );
+        contacts.forEach(contact => {
+          const value = contact[contactFilters.column];
+          if (value) values.add(value.toString());
+        });
+        break;
       case 'fiberPaths':
-        return fiberPaths.filter(path => 
-          path.linkName.toLowerCase().includes(query) ||
-          path.nodeA.toLowerCase().includes(query) ||
-          path.nodeB.toLowerCase().includes(query)
-        );
+        fiberPaths.forEach(path => {
+          const value = path[fiberPathFilters.column];
+          if (value) values.add(value.toString());
+        });
+        break;
       case 'codes':
-        return codes.filter(code => 
-          code.title.toLowerCase().includes(query) ||
-          code.equipmentName.toLowerCase().includes(query)
-        );
+        codes.forEach(code => {
+          const value = code[codeFilters.column];
+          if (value) values.add(value.toString());
+        });
+        break;
       case 'credentials':
-        return credentials.filter(cred => 
-          cred.title.toLowerCase().includes(query) ||
-          cred.type.toLowerCase().includes(query)
-        );
+        credentials.forEach(cred => {
+          const value = cred[credentialFilters.column];
+          if (value) values.add(value.toString());
+        });
+        break;
+    }
+    
+    return Array.from(values).sort();
+  };
+
+  // Get filter columns based on active section
+  const getFilterColumns = () => {
+    switch (activeSection) {
+      case 'contacts':
+        return [
+          { value: 'name', label: 'Name' },
+          { value: 'number', label: 'Number' },
+          { value: 'designation', label: 'Designation' },
+          { value: 'department', label: 'Department' },
+          { value: 'exchangeName', label: 'Exchange' },
+          { value: 'supervisorName', label: 'Supervisor' },
+          { value: 'email', label: 'Email' }
+        ];
+      case 'fiberPaths':
+        return [
+          { value: 'linkName', label: 'Link Name' },
+          { value: 'nodeA', label: 'Node A' },
+          { value: 'nodeB', label: 'Node B' },
+          { value: 'nodeASectionOwner', label: 'Node A Owner' },
+          { value: 'nodeBSectionOwner', label: 'Node B Owner' }
+        ];
+      case 'codes':
+        return [
+          { value: 'title', label: 'Title' },
+          { value: 'equipmentName', label: 'Equipment Name' }
+        ];
+      case 'credentials':
+        return [
+          { value: 'title', label: 'Title' },
+          { value: 'type', label: 'Type' },
+          { value: 'username', label: 'Username' }
+        ];
+      default:
+        return [];
+    }
+  };
+
+  // Update the filter handling
+  const handleFilterColumnChange = (value: string) => {
+    switch (activeSection) {
+      case 'contacts':
+        setContactFilters(prev => ({ ...prev, column: value as keyof Contact, value: 'all' }));
+        break;
+      case 'fiberPaths':
+        setFiberPathFilters(prev => ({ ...prev, column: value as keyof FiberPath, value: 'all' }));
+        break;
+      case 'codes':
+        setCodeFilters(prev => ({ ...prev, column: value as keyof Code, value: 'all' }));
+        break;
+      case 'credentials':
+        setCredentialFilters(prev => ({ ...prev, column: value as keyof Credential, value: 'all' }));
+        break;
+    }
+  };
+
+  const handleFilterValueChange = (value: string) => {
+    switch (activeSection) {
+      case 'contacts':
+        setContactFilters(prev => ({ ...prev, value }));
+        break;
+      case 'fiberPaths':
+        setFiberPathFilters(prev => ({ ...prev, value }));
+        break;
+      case 'codes':
+        setCodeFilters(prev => ({ ...prev, value }));
+        break;
+      case 'credentials':
+        setCredentialFilters(prev => ({ ...prev, value }));
+        break;
+    }
+  };
+
+  // Filter data based on search query and section-specific filters
+  const getFilteredData = () => {
+    const query = searchQuery.toLowerCase();
+    
+    switch (activeSection) {
+      case 'contacts':
+        return contacts.filter(contact => {
+          const matchesSearch = 
+            contact.name.toLowerCase().includes(query) ||
+            contact.exchangeName.toLowerCase().includes(query) ||
+            contact.number.includes(query) ||
+            contact.designation?.toLowerCase().includes(query) ||
+            contact.department?.toLowerCase().includes(query) ||
+            contact.email?.toLowerCase().includes(query) ||
+            contact.supervisorName?.toLowerCase().includes(query);
+
+          const matchesFilter = contactFilters.value === 'all' || 
+            String(contact[contactFilters.column]) === contactFilters.value;
+
+          return matchesSearch && matchesFilter;
+        });
+
+      case 'fiberPaths':
+        return fiberPaths.filter(path => {
+          const matchesSearch = 
+            path.linkName.toLowerCase().includes(query) ||
+            path.nodeA.toLowerCase().includes(query) ||
+            path.nodeB.toLowerCase().includes(query) ||
+            path.nodeASectionOwner.toLowerCase().includes(query) ||
+            path.nodeBSectionOwner.toLowerCase().includes(query);
+
+          const matchesFilter = fiberPathFilters.value === 'all' || 
+            String(path[fiberPathFilters.column]) === fiberPathFilters.value;
+
+          return matchesSearch && matchesFilter;
+        });
+
+      case 'codes':
+        return codes.filter(code => {
+          const matchesSearch = 
+            code.title.toLowerCase().includes(query) ||
+            code.equipmentName.toLowerCase().includes(query) ||
+            code.code.toLowerCase().includes(query);
+
+          const matchesFilter = codeFilters.value === 'all' || 
+            String(code[codeFilters.column]) === codeFilters.value;
+
+          return matchesSearch && matchesFilter;
+        });
+
+      case 'credentials':
+        return credentials.filter(cred => {
+          const matchesSearch = 
+            cred.title.toLowerCase().includes(query) ||
+            cred.type.toLowerCase().includes(query) ||
+            cred.username.toLowerCase().includes(query);
+
+          const matchesFilter = credentialFilters.value === 'all' || 
+            String(cred[credentialFilters.column]) === credentialFilters.value;
+
+          return matchesSearch && matchesFilter;
+        });
+
       case 'customList':
         return customLists.filter(list => 
           list.title.toLowerCase().includes(query)
         );
+
       default:
         return [];
     }
@@ -749,6 +913,55 @@ export default function KnowledgeBasePage(): JSX.Element {
     }
   };
 
+  const fetchContacts = async () => {
+    try {
+      setLoading(true);
+      const contactsRef = collection(db, 'contacts');
+      const q = query(contactsRef, orderBy('timestamp', 'desc'));
+      const querySnapshot = await getDocs(q);
+      
+      const fetchedContacts = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Contact[];
+
+      setContacts(fetchedContacts);
+    } catch (error) {
+      console.error('Error fetching contacts:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch contacts. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchContacts();
+  }, []);
+
+  const departments = Array.from(new Set(contacts.map(contact => contact.department)));
+
+  const handleSelectContact = (contactId: string) => {
+    const newSelected = new Set(selectedContacts);
+    if (newSelected.has(contactId)) {
+      newSelected.delete(contactId);
+    } else {
+      newSelected.add(contactId);
+    }
+    setSelectedContacts(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedContacts.size === contacts.length) {
+      setSelectedContacts(new Set());
+    } else {
+      setSelectedContacts(new Set(contacts.map(contact => contact.id)));
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -805,47 +1018,78 @@ export default function KnowledgeBasePage(): JSX.Element {
 
             {/* Create Button and Search/Filter Bar */}
             <div className="controls-container">
-              <button 
-                className="create-button bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105 flex items-center gap-2"
-                onClick={handleOpenForm}
-              >
-                <span className="text-xl font-bold">+</span>
-                {getCreateButtonText()}
-              </button>
-              
-              <div className="search-filter-container">
-                <input
-                  type="text"
-                  className="search-input"
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <select
-                  className="filter-select"
-                  value={filterValue}
-                  onChange={(e) => setFilterValue(e.target.value)}
-                >
-                  <option value="all">All</option>
-                  {activeSection === 'contacts' && (
-                    <>
-                      <option value="exchange">By Exchange</option>
-                      <option value="supervisor">By Supervisor</option>
-                    </>
-                  )}
-                  {activeSection === 'fiberPaths' && (
-                    <>
-                      <option value="nodeA">By Node A</option>
-                      <option value="nodeB">By Node B</option>
-                    </>
-                  )}
-                  {activeSection === 'codes' && (
-                    <option value="equipment">By Equipment</option>
-                  )}
-                  {activeSection === 'credentials' && (
-                    <option value="type">By Type</option>
-                  )}
-                </select>
+              <div className="flex flex-col gap-4 w-full">
+                <div className="flex justify-between items-center">
+                  <button 
+                    className="create-button bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105 flex items-center gap-2"
+                    onClick={handleOpenForm}
+                  >
+                    <span className="text-xl font-bold">+</span>
+                    {getCreateButtonText()}
+                  </button>
+                  
+                  <div className="search-filter-container">
+                    <input
+                      type="text"
+                      className="search-input"
+                      placeholder="Search..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    {activeSection !== 'customList' && (
+                      <>
+                        <select
+                          className="filter-select"
+                          value={
+                            activeSection === 'contacts' ? contactFilters.column :
+                            activeSection === 'fiberPaths' ? fiberPathFilters.column :
+                            activeSection === 'codes' ? codeFilters.column :
+                            activeSection === 'credentials' ? credentialFilters.column :
+                            ''
+                          }
+                          onChange={(e) => handleFilterColumnChange(e.target.value)}
+                        >
+                          {getFilterColumns().map(column => (
+                            <option key={column.value} value={column.value}>{column.label}</option>
+                          ))}
+                        </select>
+                        <select
+                          className="filter-select"
+                          value={
+                            activeSection === 'contacts' ? contactFilters.value :
+                            activeSection === 'fiberPaths' ? fiberPathFilters.value :
+                            activeSection === 'codes' ? codeFilters.value :
+                            activeSection === 'credentials' ? credentialFilters.value :
+                            'all'
+                          }
+                          onChange={(e) => handleFilterValueChange(e.target.value)}
+                        >
+                          <option value="all">All {
+                            activeSection === 'contacts' ? contactFilters.column :
+                            activeSection === 'fiberPaths' ? fiberPathFilters.column :
+                            activeSection === 'codes' ? codeFilters.column :
+                            activeSection === 'credentials' ? credentialFilters.column :
+                            ''
+                          }s</option>
+                          {getFilterOptions().map(option => (
+                            <option key={option} value={option}>{option}</option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Add BulkActions component for contacts section */}
+                {activeSection === 'contacts' && (
+                  <BulkActions 
+                    contacts={contacts} 
+                    onRefresh={fetchContacts}
+                    selectedContacts={selectedContacts}
+                    onSelectContact={handleSelectContact}
+                    onSelectAll={handleSelectAll}
+                  />
+                )}
               </div>
             </div>
 
@@ -881,6 +1125,9 @@ export default function KnowledgeBasePage(): JSX.Element {
                         setFormData(contact);
                         setShowForm(true);
                       }}
+                      selectedContacts={selectedContacts}
+                      onSelectContact={handleSelectContact}
+                      onSelectAll={handleSelectAll}
                     />
                   )}
                   {activeSection === 'fiberPaths' && (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 interface MultiSelectDropdownProps {
   options: string[];
@@ -14,19 +14,52 @@ export default function MultiSelectDropdown({
   label 
 }: MultiSelectDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [customValue, setCustomValue] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const toggleOption = (option: string) => {
+    if (option === 'Add Custom') {
+      setShowCustomInput(true);
+      return;
+    }
     const newSelection = selectedValues.includes(option)
       ? selectedValues.filter(item => item !== option)
       : [...selectedValues, option];
     onChange(newSelection);
   };
 
+  const handleAddCustom = () => {
+    if (customValue.trim()) {
+      onChange([...selectedValues, customValue.trim()]);
+      setCustomValue('');
+      setShowCustomInput(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setCustomValue('');
+    setShowCustomInput(false);
+  };
+
   // Reorder options to put "Add Custom" at the top
   const reorderedOptions = ['Add Custom', ...options.filter(opt => opt !== 'Add Custom')];
 
   return (
-    <div className="multi-select-container">
+    <div className="multi-select-container" ref={dropdownRef}>
       <label className="dropdown-label">{label}</label>
       <div 
         className={`selected-display ${isOpen ? 'open' : ''}`}
@@ -58,23 +91,57 @@ export default function MultiSelectDropdown({
       </div>
       {isOpen && (
         <div className="options-container">
-          {reorderedOptions.map((option) => (
-            <div 
-              key={option} 
-              className={`option ${selectedValues.includes(option) ? 'selected' : ''}`}
-              onClick={() => toggleOption(option)}
-            >
-              <div className="checkbox-wrapper">
-                <input
-                  type="checkbox"
-                  checked={selectedValues.includes(option)}
-                  onChange={() => {}}
-                  className="custom-checkbox"
-                />
-                <span className="checkbox-label">{option}</span>
+          {showCustomInput ? (
+            <div className="custom-input-container">
+              <input
+                type="text"
+                value={customValue}
+                onChange={(e) => setCustomValue(e.target.value)}
+                placeholder="Enter custom stakeholder"
+                className="custom-input"
+                onClick={(e) => e.stopPropagation()}
+              />
+              <div className="button-group">
+                <button
+                  className="btn-add"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAddCustom();
+                  }}
+                  disabled={!customValue.trim()}
+                >
+                  Add
+                </button>
+                <button
+                  className="btn-cancel"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCancel();
+                  }}
+                >
+                  Cancel
+                </button>
               </div>
             </div>
-          ))}
+          ) : (
+            reorderedOptions.map((option) => (
+              <div 
+                key={option} 
+                className={`option ${selectedValues.includes(option) ? 'selected' : ''}`}
+                onClick={() => toggleOption(option)}
+              >
+                <div className="checkbox-wrapper">
+                  <input
+                    type="checkbox"
+                    checked={selectedValues.includes(option)}
+                    onChange={() => {}}
+                    className="custom-checkbox"
+                  />
+                  <span className="checkbox-label">{option}</span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 
@@ -177,6 +244,58 @@ export default function MultiSelectDropdown({
           animation: slideDown 0.2s ease;
         }
 
+        .custom-input-container {
+          padding: 10px 15px;
+        }
+
+        .custom-input {
+          width: 100%;
+          padding: 8px 12px;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          font-size: 0.9em;
+          margin-bottom: 10px;
+        }
+
+        .button-group {
+          display: flex;
+          gap: 10px;
+          justify-content: flex-end;
+        }
+
+        .btn-add,
+        .btn-cancel {
+          padding: 6px 12px;
+          border-radius: 4px;
+          font-size: 0.9em;
+          cursor: pointer;
+          border: none;
+          transition: all 0.2s ease;
+        }
+
+        .btn-add {
+          background-color: #007bff;
+          color: white;
+        }
+
+        .btn-add:disabled {
+          background-color: #ccc;
+          cursor: not-allowed;
+        }
+
+        .btn-cancel {
+          background-color: #6c757d;
+          color: white;
+        }
+
+        .btn-add:hover:not(:disabled) {
+          background-color: #0056b3;
+        }
+
+        .btn-cancel:hover {
+          background-color: #5a6268;
+        }
+
         .option {
           padding: 10px 15px;
           cursor: pointer;
@@ -243,31 +362,10 @@ export default function MultiSelectDropdown({
         @keyframes fadeIn {
           from {
             opacity: 0;
-            transform: scale(0.95);
           }
           to {
             opacity: 1;
-            transform: scale(1);
           }
-        }
-
-        /* Scrollbar styling */
-        .options-container::-webkit-scrollbar {
-          width: 8px;
-        }
-
-        .options-container::-webkit-scrollbar-track {
-          background: #f1f1f1;
-          border-radius: 4px;
-        }
-
-        .options-container::-webkit-scrollbar-thumb {
-          background: #ccc;
-          border-radius: 4px;
-        }
-
-        .options-container::-webkit-scrollbar-thumb:hover {
-          background: #999;
         }
       `}</style>
     </div>

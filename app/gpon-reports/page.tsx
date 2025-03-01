@@ -467,6 +467,11 @@ export default function GPONReportsPage() {
   const [uniqueFdhs, setUniqueFdhs] = useState<string[]>([]);
   const [uniqueFats, setUniqueFats] = useState<string[]>([]);
 
+  // Add new state variables for pagination after existing state declarations
+  const [currentPage, setCurrentPage] = useState(1);
+  const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [tableTheme, setTableTheme] = useState('theme-modern-blue');
+
   const closerOptions = [
     'Ahmed', 'Akhtar', 'Ali', 'Asif', 'Fahad', 'Jaffar',
     'Kamran', 'Muneer', 'Raza', 'Saad', 'Sania', 'Shahzad', 'Talib', 'Taimoor'
@@ -873,6 +878,16 @@ export default function GPONReportsPage() {
     }
   };
 
+  // Add this function after getSortedIncidents
+  const getPaginatedData = () => {
+    const sortedData = getSortedIncidents();
+    const startIndex = (currentPage - 1) * entriesPerPage;
+    return sortedData.slice(startIndex, startIndex + entriesPerPage);
+  };
+
+  // Add this function after getPaginatedData
+  const totalPages = Math.ceil(getSortedIncidents().length / entriesPerPage);
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -959,12 +974,48 @@ export default function GPONReportsPage() {
           >
             <FaFilter /> Filters
           </button>
-          <button 
-            className="btn btn-primary"
-            onClick={exportToExcel}
-          >
+          <button className="action-btn" onClick={exportToExcel}>
             <FaDownload /> Export to Excel
           </button>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '15px',
+            marginTop: '10px',
+            width: '100%'
+          }}>
+            <label htmlFor="theme-select" style={{ 
+              fontWeight: 700, 
+              color: '#000000',
+              fontSize: '15px'
+            }}>
+              Table Theme:
+            </label>
+            <select
+              id="theme-select"
+              value={tableTheme}
+              onChange={(e) => setTableTheme(e.target.value)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '4px',
+                border: '1px solid #ddd',
+                backgroundColor: 'white',
+                color: '#000000',
+                cursor: 'pointer',
+                fontWeight: 600,
+                minWidth: '150px'
+              }}
+            >
+              <option value="theme-modern-blue">Modern Blue</option>
+              <option value="theme-pro-gray">Professional Gray</option>
+              <option value="theme-corporate-purple">Corporate Purple</option>
+              <option value="theme-elegant-dark">Elegant Dark</option>
+              <option value="theme-soft-green">Soft Green</option>
+              <option value="theme-warm-earth">Warm Earth</option>
+              <option value="theme-ocean-blue">Ocean Blue</option>
+              <option value="theme-classic-enterprise">Classic Enterprise</option>
+            </select>
+          </div>
           {selectedIncidents.length > 0 && (
             <button
               className="btn btn-primary"
@@ -1045,7 +1096,7 @@ export default function GPONReportsPage() {
       )}
 
       <div className="table-container">
-        <table>
+        <table className={tableTheme}>
           <thead>
             <tr>
                 {columns.map((column, index) => (
@@ -1074,7 +1125,7 @@ export default function GPONReportsPage() {
             </tr>
           </thead>
           <tbody>
-            {getSortedIncidents().map((incident) => (
+            {getPaginatedData().map((incident) => (
               <tr key={incident.id}>
                   {columns.map((column) => (
                     <td 
@@ -1093,6 +1144,46 @@ export default function GPONReportsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Add pagination controls */}
+        <div className={`pagination-controls ${tableTheme}`}>
+          <div className="pagination-info">
+            <span>Show</span>
+            <select 
+              className="entries-select"
+              value={entriesPerPage}
+              onChange={(e) => {
+                setEntriesPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+            >
+              {[5, 10, 25, 50, 100].map(value => (
+                <option key={value} value={value}>{value}</option>
+              ))}
+            </select>
+            <span>entries</span>
+          </div>
+
+          <div className="pagination-info">
+            <button
+              className="pagination-button"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </button>
+            <span className="page-info">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              className="pagination-button"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </button>
+          </div>
         </div>
 
         {/* Incident Details Modal */}

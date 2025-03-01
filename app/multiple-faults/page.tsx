@@ -676,9 +676,9 @@ export default function MultipleFaults() {
                 Add Fault
               </button>
 
-              <button 
-                type="submit" 
-                className="btn btn-primary"
+              <button
+                type="submit"
+                className="btn btn-success"
                 disabled={isSubmitting || faults.length === 0}
                 ref={submitButtonRef}
               >
@@ -923,6 +923,26 @@ export default function MultipleFaults() {
             .form-select, .form-input {
               width: 100%;
             }
+          }
+
+          .btn:disabled {
+            background-color: #86efac !important;
+            cursor: not-allowed;
+            opacity: 0.7;
+          }
+
+          .btn-success {
+            background-color: #22c55e;
+            color: white;
+          }
+
+          .btn-success:disabled {
+            background-color: #86efac !important;
+            cursor: not-allowed;
+          }
+
+          .btn-success:hover:not(:disabled) {
+            background-color: #16a34a;
           }
         `}</style>
       </div>

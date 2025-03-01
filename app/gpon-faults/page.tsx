@@ -273,28 +273,30 @@ export default function GPONFaultsPage() {
       <div className="page-container" style={{ paddingTop: '32px' }}>
         <div className="card slide-in">
           <div className="flex justify-between items-center">
-            <h1>GPON Faults</h1>
-            <div className="header-buttons">
-              <button 
-                className="btn btn-secondary"
-                onClick={() => setShowTemplates(true)}
-              >
-                <span className="icon">📋</span>
-                Templates
-              </button>
-              <Link href="/">
-                <button className="btn btn-primary">
-                  <span className="icon">🏠</span>
-                  Back to Home
+            <div className="flex items-center gap-4">
+              <h1>GPON Faults</h1>
+              <div className="header-buttons" style={{ display: 'flex', gap: '10px', marginLeft: '20px' }}>
+                <button 
+                  className="btn btn-secondary"
+                  onClick={() => setShowTemplates(true)}
+                >
+                  <span className="icon">📋</span>
+                  Templates
                 </button>
-              </Link>
-              <Link href="/gpon-reports">
-                <button className="btn btn-danger">
-                  <span className="icon">📊</span>
-                  View Reports
-                </button>
-              </Link>
+                <Link href="/">
+                  <button className="btn btn-primary">
+                    <span className="icon">🏠</span>
+                    Back to Home
+                  </button>
+                </Link>
+              </div>
             </div>
+            <Link href="/gpon-reports">
+              <button className="btn btn-danger">
+                <span className="icon">📊</span>
+                View Reports
+              </button>
+            </Link>
           </div>
         </div>
 

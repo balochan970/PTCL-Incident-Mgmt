@@ -645,12 +645,13 @@ export default function SingleFaultPage() {
             )}
 
             <div className="form-actions">
-              <button 
-                type="submit" 
-                className="btn btn-primary"
+              <button
+                type="submit"
+                className="btn btn-success"
                 disabled={isSubmitting}
                 ref={submitButtonRef}
               >
+                <span className="icon">📝</span>
                 {isSubmitting ? 'Submitting...' : 'Submit Incident'}
               </button>
             </div>
@@ -824,8 +825,24 @@ export default function SingleFaultPage() {
             color: white;
           }
 
-          .btn:hover {
-            opacity: 0.9;
+          .btn:disabled {
+            background-color: #86efac !important;
+            cursor: not-allowed;
+            opacity: 0.7;
+          }
+
+          .btn-success {
+            background-color: #22c55e;
+            color: white;
+          }
+
+          .btn-success:disabled {
+            background-color: #86efac !important;
+            cursor: not-allowed;
+          }
+
+          .btn-success:hover:not(:disabled) {
+            background-color: #16a34a;
           }
 
           @media (max-width: 768px) {
