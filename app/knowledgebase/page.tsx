@@ -1,7 +1,7 @@
 "use client";
 import '../styles/globals.css';
 import Link from 'next/link';
-import { useState, useEffect, JSX } from 'react';
+import { useState, useEffect, JSX, useMemo } from 'react';
 import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, deleteDoc, doc, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebaseConfig';
 import { hashPassword } from '../../lib/utils/password';
@@ -272,23 +272,48 @@ export default function KnowledgeBasePage(): JSX.Element {
               />
             </div>
             <div className="form-group">
-              <label htmlFor="exchangeName">Exchange Name *</label>
+              <label htmlFor="designation">Designation</label>
+              <input
+                type="text"
+                id="designation"
+                value={formData.designation || ''}
+                onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="department">Department</label>
+              <input
+                type="text"
+                id="department"
+                value={formData.department || ''}
+                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="exchangeName">Exchange Name</label>
               <input
                 type="text"
                 id="exchangeName"
                 value={formData.exchangeName || ''}
                 onChange={(e) => setFormData({ ...formData, exchangeName: e.target.value })}
-                required
               />
             </div>
             <div className="form-group">
-              <label htmlFor="supervisorName">Supervisor Name *</label>
+              <label htmlFor="supervisorName">Supervisor Name</label>
               <input
                 type="text"
                 id="supervisorName"
                 value={formData.supervisorName || ''}
                 onChange={(e) => setFormData({ ...formData, supervisorName: e.target.value })}
-                required
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="email">Email</label>
+              <input
+                type="email"
+                id="email"
+                value={formData.email || ''}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
             <div className="form-group">
@@ -750,70 +775,108 @@ export default function KnowledgeBasePage(): JSX.Element {
 
   // Filter data based on search query and section-specific filters
   const getFilteredData = () => {
-    const query = searchQuery.toLowerCase();
+    const query = searchQuery.toLowerCase().trim();
     
     switch (activeSection) {
       case 'contacts':
         return contacts.filter(contact => {
-          const matchesSearch = 
-            contact.name.toLowerCase().includes(query) ||
-            contact.exchangeName.toLowerCase().includes(query) ||
-            contact.number.includes(query) ||
-            contact.designation?.toLowerCase().includes(query) ||
-            contact.department?.toLowerCase().includes(query) ||
-            contact.email?.toLowerCase().includes(query) ||
-            contact.supervisorName?.toLowerCase().includes(query);
+          // First check if it matches the search query
+          const searchFields = [
+            contact.name,
+            contact.number,
+            contact.backupNumber,
+            contact.exchangeName,
+            contact.supervisorName,
+            contact.designation,
+            contact.department,
+            contact.email,
+            contact.remarks
+          ];
+          
+          const matchesSearch = query === '' || searchFields.some(field => 
+            field && field.toString().toLowerCase().includes(query)
+          );
 
+          // Then check if it matches the filter
+          const filterField = contact[contactFilters.column];
           const matchesFilter = contactFilters.value === 'all' || 
-            String(contact[contactFilters.column]) === contactFilters.value;
+            (filterField && filterField.toString().toLowerCase() === contactFilters.value.toLowerCase());
 
           return matchesSearch && matchesFilter;
         });
 
       case 'fiberPaths':
         return fiberPaths.filter(path => {
-          const matchesSearch = 
-            path.linkName.toLowerCase().includes(query) ||
-            path.nodeA.toLowerCase().includes(query) ||
-            path.nodeB.toLowerCase().includes(query) ||
-            path.nodeASectionOwner.toLowerCase().includes(query) ||
-            path.nodeBSectionOwner.toLowerCase().includes(query);
+          // First check if it matches the search query
+          const searchFields = [
+            path.linkName,
+            path.nodeA,
+            path.nodeB,
+            path.nodeASectionLength,
+            path.nodeBSectionLength,
+            path.nodeASectionOwner,
+            path.nodeBSectionOwner,
+            path.remarks
+          ];
+          
+          const matchesSearch = query === '' || searchFields.some(field => 
+            field && field.toString().toLowerCase().includes(query)
+          );
 
+          // Then check if it matches the filter
+          const filterField = path[fiberPathFilters.column];
           const matchesFilter = fiberPathFilters.value === 'all' || 
-            String(path[fiberPathFilters.column]) === fiberPathFilters.value;
+            (filterField && filterField.toString().toLowerCase() === fiberPathFilters.value.toLowerCase());
 
           return matchesSearch && matchesFilter;
         });
 
       case 'codes':
         return codes.filter(code => {
-          const matchesSearch = 
-            code.title.toLowerCase().includes(query) ||
-            code.equipmentName.toLowerCase().includes(query) ||
-            code.code.toLowerCase().includes(query);
+          // First check if it matches the search query
+          const searchFields = [
+            code.title,
+            code.equipmentName,
+            code.code
+          ];
+          
+          const matchesSearch = query === '' || searchFields.some(field => 
+            field && field.toString().toLowerCase().includes(query)
+          );
 
+          // Then check if it matches the filter
+          const filterField = code[codeFilters.column];
           const matchesFilter = codeFilters.value === 'all' || 
-            String(code[codeFilters.column]) === codeFilters.value;
+            (filterField && filterField.toString().toLowerCase() === codeFilters.value.toLowerCase());
 
           return matchesSearch && matchesFilter;
         });
 
       case 'credentials':
         return credentials.filter(cred => {
-          const matchesSearch = 
-            cred.title.toLowerCase().includes(query) ||
-            cred.type.toLowerCase().includes(query) ||
-            cred.username.toLowerCase().includes(query);
+          // First check if it matches the search query
+          const searchFields = [
+            cred.title,
+            cred.username,
+            cred.type,
+            cred.remarks
+          ];
+          
+          const matchesSearch = query === '' || searchFields.some(field => 
+            field && field.toString().toLowerCase().includes(query)
+          );
 
+          // Then check if it matches the filter
+          const filterField = cred[credentialFilters.column];
           const matchesFilter = credentialFilters.value === 'all' || 
-            String(cred[credentialFilters.column]) === credentialFilters.value;
+            (filterField && filterField.toString().toLowerCase() === credentialFilters.value.toLowerCase());
 
           return matchesSearch && matchesFilter;
         });
 
       case 'customList':
         return customLists.filter(list => 
-          list.title.toLowerCase().includes(query)
+          query === '' || list.title.toLowerCase().includes(query)
         );
 
       default:
@@ -962,6 +1025,20 @@ export default function KnowledgeBasePage(): JSX.Element {
     }
   };
 
+  // Memoize filtered data to prevent unnecessary recalculations
+  const filteredData = useMemo(() => getFilteredData(), [
+    activeSection,
+    contacts,
+    fiberPaths,
+    codes,
+    credentials,
+    searchQuery,
+    contactFilters,
+    fiberPathFilters,
+    codeFilters,
+    credentialFilters
+  ]);
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -1103,7 +1180,7 @@ export default function KnowledgeBasePage(): JSX.Element {
                 <>
                   {activeSection === 'contacts' && (
                     <ContactsSection
-                      contacts={getFilteredData() as Contact[]}
+                      contacts={filteredData as Contact[]}
                       onSave={async (contact) => {
                         const docRef = await addDoc(collection(db, 'contacts'), contact as any);
                         const newContacts = [...contacts, { ...contact, id: docRef.id }];
@@ -1132,7 +1209,7 @@ export default function KnowledgeBasePage(): JSX.Element {
                   )}
                   {activeSection === 'fiberPaths' && (
                     <FiberPathsSection
-                      paths={getFilteredData() as FiberPath[]}
+                      paths={filteredData as FiberPath[]}
                       onSave={async (path) => {
                         const docRef = await addDoc(collection(db, 'fiber_paths'), path as any);
                         const newPaths = [...fiberPaths, { ...path, id: docRef.id }];
@@ -1158,7 +1235,7 @@ export default function KnowledgeBasePage(): JSX.Element {
                   )}
                   {activeSection === 'codes' && (
                     <CodesSection
-                      codes={getFilteredData() as Code[]}
+                      codes={filteredData as Code[]}
                       onSave={async (code) => {
                         const docRef = await addDoc(collection(db, 'codes'), code as any);
                         const newCodes = [...codes, { ...code, id: docRef.id }];
@@ -1179,7 +1256,7 @@ export default function KnowledgeBasePage(): JSX.Element {
                   )}
                   {activeSection === 'credentials' && (
                     <CredentialsSection
-                      credentials={getFilteredData() as Credential[]}
+                      credentials={filteredData as Credential[]}
                       onSave={async (credential) => {
                         const docRef = await addDoc(collection(db, 'credentials'), credential as any);
                         const newCredentials = [...credentials, { ...credential, id: docRef.id }];
@@ -1200,7 +1277,7 @@ export default function KnowledgeBasePage(): JSX.Element {
                   )}
                   {activeSection === 'customList' && (
                     <CustomListSection
-                      lists={getFilteredData() as CustomList[]}
+                      lists={filteredData as CustomList[]}
                       onSave={async (list) => {
                         const docRef = await addDoc(collection(db, 'custom_lists'), {
                           ...list,
