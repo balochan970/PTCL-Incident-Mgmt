@@ -290,20 +290,23 @@ export default function SingleFaultPage() {
     if (template.equipmentType) setEquipmentType(template.equipmentType);
     if (template.exchangeName) setExchangeName(template.exchangeName);
     if (template.faultType) setFaultType(template.faultType);
-    if (template.nodes) {
-      setNodes({
-        nodeA: template.nodes.nodeA || '',
-        nodeB: template.nodes.nodeB || '',
-        nodeC: template.nodes.nodeC || '',
-        nodeD: template.nodes.nodeD || '',
-        nodeE: template.nodes.nodeE || '',
-        nodeF: template.nodes.nodeF || '',
-        nodeG: template.nodes.nodeG || '',
-        nodeH: template.nodes.nodeH || ''
-      });
-      // Show extra nodes if template has node C or D
-      setShowExtraNodes(!!(template.nodes.nodeC || template.nodes.nodeD || template.nodes.nodeE || template.nodes.nodeF || template.nodes.nodeG || template.nodes.nodeH));
-    }
+    if (template.remarks) setRemarks(template.remarks);
+    
+    // Update nodes directly from template's nodeA and nodeB
+    setNodes({
+      nodeA: template.nodeA || '',
+      nodeB: template.nodeB || '',
+      nodeC: template.nodeC || '',
+      nodeD: template.nodeD || '',
+      nodeE: template.nodeE || '',
+      nodeF: template.nodeF || '',
+      nodeG: template.nodeG || '',
+      nodeH: template.nodeH || ''
+    });
+    
+    // Show extra nodes if template has node C or D
+    setShowExtraNodes(!!(template.nodeC || template.nodeD || template.nodeE || template.nodeF || template.nodeG || template.nodeH));
+    
     if (template.stakeholders) {
       setStakeholders(template.stakeholders);
     }
@@ -328,7 +331,7 @@ export default function SingleFaultPage() {
             <div className="header-buttons">
               <button
                 className="btn btn-secondary"
-                onClick={() => setShowTemplates(true)}
+                onClick={() => setShowTemplates(!showTemplates)}
               >
                 <span className="icon">📋</span>
                 Templates

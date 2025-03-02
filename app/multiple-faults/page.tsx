@@ -310,37 +310,38 @@ export default function MultipleFaults() {
       }
     }
     if (template.exchangeName) setExchangeName(template.exchangeName);
-    if (template.nodes || template.faultType || template.equipmentType) {
-      // Add a new fault with the template data
-      const newFault = {
-        equipmentType: template.equipmentType || '',
-        faultType: template.faultType || '',
-        nodes: {
-          nodeA: template.nodes?.nodeA || '',
-          nodeB: template.nodes?.nodeB || '',
-          nodeC: template.nodes?.nodeC || '',
-          nodeD: template.nodes?.nodeD || '',
-          nodeE: template.nodes?.nodeE || '',
-          nodeF: template.nodes?.nodeF || '',
-          nodeG: template.nodes?.nodeG || '',
-          nodeH: template.nodes?.nodeH || ''
-        },
-        outageNodes: {
-          nodeA: false,
-          nodeB: false,
-          nodeC: false,
-          nodeD: false,
-          nodeE: false,
-          nodeF: false,
-          nodeG: false,
-          nodeH: false
-        },
-        remarks: template.remarks || ''
-      };
-      setFaults([...faults, newFault]);
-      // Show extra nodes if template has node C or D
-      setShowExtraNodes(true);
-    }
+    
+    // Add a new fault with the template data
+    const newFault = {
+      equipmentType: template.equipmentType || '',
+      faultType: template.faultType || '',
+      nodes: {
+        nodeA: template.nodeA || '',
+        nodeB: template.nodeB || '',
+        nodeC: template.nodeC || '',
+        nodeD: template.nodeD || '',
+        nodeE: template.nodeE || '',
+        nodeF: template.nodeF || '',
+        nodeG: template.nodeG || '',
+        nodeH: template.nodeH || ''
+      },
+      outageNodes: {
+        nodeA: false,
+        nodeB: false,
+        nodeC: false,
+        nodeD: false,
+        nodeE: false,
+        nodeF: false,
+        nodeG: false,
+        nodeH: false
+      },
+      remarks: template.remarks || ''
+    };
+    setFaults([...faults, newFault]);
+    
+    // Show extra nodes if template has node C or D
+    setShowExtraNodes(!!(template.nodeC || template.nodeD || template.nodeE || template.nodeF || template.nodeG || template.nodeH));
+    
     if (template.stakeholders) {
       setSelectedStakeholders(template.stakeholders);
     }
@@ -354,10 +355,10 @@ export default function MultipleFaults() {
         <div className="header card">
           <div className="title-section">
             <h1>Multiple Faults Report</h1>
-            <div className="header-buttons">
-              <button
+            <div className="header-buttons" style={{ display: 'flex', gap: '10px', marginLeft: '20px' }}>
+              <button 
                 className="btn btn-secondary"
-                onClick={() => setShowTemplates(true)}
+                onClick={() => setShowTemplates(!showTemplates)}
               >
                 <span className="icon">📋</span>
                 Templates

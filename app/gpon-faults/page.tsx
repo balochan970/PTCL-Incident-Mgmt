@@ -253,17 +253,16 @@ export default function GPONFaultsPage() {
     if (template.stakeholders) {
       setStakeholders(template.stakeholders);
     }
-    if (template.nodes) {
-      const newFault: GPONFault = {
-        fdh: template.nodes.nodeA || '',
-        fats: [{ id: Date.now().toString(), value: template.nodes.nodeB || '' }],
-        oltIp: template.nodes.nodeC || '',
-        fsps: [{ id: Date.now().toString(), value: template.nodes.nodeD || '' }],
-        isOutage: false,
-        remarks: template.remarks || ''
-      };
-      setFaults([newFault]);
-    }
+    // Update the fault fields from template
+    const newFault: GPONFault = {
+      fdh: template.fdh || '',
+      fats: [{ id: Date.now().toString(), value: template.fat || '' }],
+      oltIp: template.oltIp || '',
+      fsps: [{ id: Date.now().toString(), value: template.fsp || '' }],
+      isOutage: template.faultType === 'Outage',
+      remarks: template.remarks || ''
+    };
+    setFaults([newFault]);
     setShowTemplates(false);
   };
 
@@ -278,7 +277,7 @@ export default function GPONFaultsPage() {
               <div className="header-buttons" style={{ display: 'flex', gap: '10px', marginLeft: '20px' }}>
                 <button 
                   className="btn btn-secondary"
-                  onClick={() => setShowTemplates(true)}
+                  onClick={() => setShowTemplates(!showTemplates)}
                 >
                   <span className="icon">📋</span>
                   Templates

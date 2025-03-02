@@ -21,6 +21,8 @@ interface Template {
   fat?: string;
   oltIp?: string;
   fsp?: string;
+  stakeholders?: string[];
+  remarks?: string;
 }
 
 interface TemplatesOverlayProps {
@@ -44,7 +46,9 @@ export default function TemplatesOverlay({ onClose, onApplyTemplate }: Templates
     fdh: '',
     fat: '',
     oltIp: '',
-    fsp: ''
+    fsp: '',
+    stakeholders: [],
+    remarks: ''
   });
 
   useEffect(() => {
@@ -83,13 +87,24 @@ export default function TemplatesOverlay({ onClose, onApplyTemplate }: Templates
         return;
       }
 
+      const templateData = {
+        ...formData,
+        // Ensure all fields are properly formatted
+        fdh: formData.fdh || '',
+        fat: formData.fat || '',
+        oltIp: formData.oltIp || '',
+        fsp: formData.fsp || '',
+        stakeholders: formData.stakeholders || [],
+        remarks: formData.remarks || ''
+      };
+
       if (editingTemplate) {
         // Update existing template
         const templateRef = doc(db, 'faultTemplates', editingTemplate.id);
-        await updateDoc(templateRef, formData);
+        await updateDoc(templateRef, templateData);
       } else {
         // Create new template
-        await addDoc(templatesRef, formData);
+        await addDoc(templatesRef, templateData);
       }
 
       await fetchTemplates();
@@ -127,7 +142,9 @@ export default function TemplatesOverlay({ onClose, onApplyTemplate }: Templates
       fdh: template.fdh || '',
       fat: template.fat || '',
       oltIp: template.oltIp || '',
-      fsp: template.fsp || ''
+      fsp: template.fsp || '',
+      stakeholders: template.stakeholders || [],
+      remarks: template.remarks || ''
     });
     setShowForm(true);
   };
@@ -144,7 +161,9 @@ export default function TemplatesOverlay({ onClose, onApplyTemplate }: Templates
       fdh: '',
       fat: '',
       oltIp: '',
-      fsp: ''
+      fsp: '',
+      stakeholders: [],
+      remarks: ''
     });
     setEditingTemplate(null);
     setShowForm(false);
@@ -357,226 +376,220 @@ export default function TemplatesOverlay({ onClose, onApplyTemplate }: Templates
           top: 0;
           left: 0;
           bottom: 0;
-          width: 400px;
-          background: #FFF8E8;
-          border-right: 2px solid #D4C9A8;
-          padding: 1.5rem;
+          width: 350px;
+          background: #ffffff;
+          border-right: 1px solid #e2e8f0;
+          padding: 1rem;
           overflow-y: auto;
           box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
           z-index: 1000;
-          animation: slideIn 0.3s ease-out;
+          animation: slideIn 0.3s ease;
         }
 
         @keyframes slideIn {
           from {
             transform: translateX(-100%);
+            opacity: 0;
           }
           to {
             transform: translateX(0);
+            opacity: 1;
           }
         }
 
         .templates-header {
-          margin-bottom: 1.5rem;
+          margin-bottom: 1rem;
+          position: sticky;
+          top: 0;
+          background: #ffffff;
+          padding-bottom: 0.5rem;
+          border-bottom: 1px solid #e2e8f0;
+          z-index: 2;
         }
 
         .header-content {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 1rem;
+          margin-bottom: 0.5rem;
         }
 
         .header-content h2 {
           margin: 0;
-          color: #4A4637;
-          font-size: 1.2rem;
+          color: #1a202c;
+          font-size: 1.5rem;
           font-weight: 600;
+          letter-spacing: -0.025em;
         }
 
         .close-btn {
           background: none;
           border: none;
-          color: #4A4637;
-          font-size: 1.5rem;
+          color: #4a5568;
+          font-size: 1.75rem;
           cursor: pointer;
-          padding: 0.25rem;
+          padding: 0.5rem;
           line-height: 1;
-          transition: color 0.2s;
+          transition: all 0.2s;
+          border-radius: 50%;
+          width: 40px;
+          height: 40px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .close-btn:hover {
-          color: #635C48;
+          background: #f7fafc;
+          color: #2d3748;
         }
 
         .search-bar {
           display: flex;
-          gap: 0.5rem;
+          gap: 0.75rem;
           align-items: center;
         }
 
         .search-input {
           flex: 1;
-          padding: 0.5rem;
-          border: 1px solid #D4C9A8;
+          padding: 0.4rem 0.5rem;
+          border: 1px solid #e2e8f0;
           border-radius: 4px;
-          font-size: 0.9rem;
-          background: white;
-        }
-
-        .search-input:focus {
-          outline: none;
-          border-color: #4A4637;
+          font-size: 0.875rem;
         }
 
         .create-template-btn {
-          background: #4A4637;
+          padding: 0.4rem 0.75rem;
+          font-size: 0.875rem;
+          background: #22c55e;
           color: white;
           border: none;
-          padding: 0.5rem 1rem;
           border-radius: 4px;
           cursor: pointer;
-          font-size: 0.9rem;
-          transition: background 0.2s;
-          white-space: nowrap;
+          transition: background-color 0.2s;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.25rem;
+          font-weight: 500;
         }
 
         .create-template-btn:hover {
-          background: #635C48;
+          background: #16a34a;
+        }
+
+        .create-template-btn:active {
+          background: #15803d;
         }
 
         .template-form {
-          background: white;
-          padding: 1.5rem;
-          border-radius: 8px;
-          margin-bottom: 1.5rem;
-          border: 1px solid #D4C9A8;
+          background: #ffffff;
+          padding: 0.75rem;
+          border-radius: 6px;
+          margin-bottom: 1rem;
+          border: 1px solid #e2e8f0;
         }
 
         .template-form h3 {
-          margin: 0 0 1rem 0;
-          color: #4A4637;
-          font-size: 1.1rem;
-          font-weight: 600;
+          margin: 0 0 0.75rem 0;
+          font-size: 1rem;
+          color: #2d3748;
+          font-weight: 500;
         }
 
-        .form-input {
+        .form-input, .form-select {
           width: 100%;
-          padding: 0.5rem;
-          margin-bottom: 1rem;
-          border: 1px solid #D4C9A8;
+          padding: 0.4rem 0.5rem;
+          margin-bottom: 0.5rem;
+          border: 1px solid #e2e8f0;
           border-radius: 4px;
-          font-size: 0.9rem;
-          background: #FFF8E8;
-        }
-
-        .form-input:focus {
-          outline: none;
-          border-color: #4A4637;
-        }
-
-        .form-select {
-          width: 100%;
-          padding: 0.5rem;
-          margin-bottom: 1rem;
-          border: 1px solid #D4C9A8;
-          border-radius: 4px;
-          font-size: 0.9rem;
-          background: #FFF8E8;
-        }
-
-        .form-select:focus {
-          outline: none;
-          border-color: #4A4637;
+          font-size: 0.875rem;
+          background: #ffffff;
         }
 
         .button-group {
           display: flex;
-          gap: 1rem;
+          gap: 0.5rem;
           justify-content: flex-end;
+          margin-top: 0.75rem;
         }
 
         .btn {
-          padding: 0.5rem 1rem;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 0.9rem;
-          transition: all 0.2s;
+          padding: 0.4rem 0.75rem;
+          font-size: 0.875rem;
         }
 
         .btn-primary {
-          background: #4A4637;
+          background: #3182ce;
           color: white;
         }
 
         .btn-primary:hover {
-          background: #635C48;
+          background: #2c5282;
         }
 
         .btn-secondary {
-          background: #D4C9A8;
-          color: #4A4637;
+          background: #edf2f7;
+          color: #2d3748;
         }
 
         .btn-secondary:hover {
-          background: #C2B696;
+          background: #e2e8f0;
         }
 
         .btn-danger {
-          background: #DC3545;
+          background: #f56565;
           color: white;
         }
 
         .btn-danger:hover {
-          background: #C82333;
+          background: #c53030;
         }
 
         .templates-list {
           display: flex;
           flex-direction: column;
           gap: 1rem;
+          padding-bottom: 2rem;
         }
 
         .template-item {
-          background: white;
-          padding: 1rem;
-          border-radius: 8px;
-          border: 1px solid #D4C9A8;
+          padding: 0.5rem;
+          margin-bottom: 0.5rem;
+          border: 1px solid #e2e8f0;
+          border-radius: 4px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .template-info {
+          flex: 1;
         }
 
         .template-info h3 {
-          margin: 0 0 0.5rem 0;
-          font-size: 1rem;
-          color: #4A4637;
+          margin: 0;
+          font-size: 0.875rem;
+          font-weight: 500;
         }
 
         .template-info p {
-          margin: 0.25rem 0;
-          font-size: 0.9rem;
-          color: #666;
+          margin: 0.25rem 0 0 0;
+          font-size: 0.75rem;
+          color: #718096;
         }
 
         .template-actions {
           display: flex;
-          gap: 0.5rem;
-          margin-top: 1rem;
+          gap: 0.25rem;
+        }
+
+        .template-actions .btn {
+          padding: 0.25rem 0.5rem;
+          font-size: 0.75rem;
         }
 
         @media (max-width: 768px) {
           .templates-overlay {
-            width: 100%;
-          }
-
-          .search-bar {
-            flex-direction: column;
-          }
-
-          .create-template-btn {
-            width: 100%;
-          }
-
-          .search-input {
             width: 100%;
           }
         }
