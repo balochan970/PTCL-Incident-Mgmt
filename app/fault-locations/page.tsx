@@ -145,7 +145,8 @@ export default function FaultLocationsPage() {
               </div>
               <Link href="/">
                 <button className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg">
-                  Back to Home
+                <span className="icon">🏠 </span>
+                Back to Home
                 </button>
               </Link>
             </div>

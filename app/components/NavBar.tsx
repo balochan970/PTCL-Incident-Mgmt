@@ -6,6 +6,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Menu } from "lucide-react";
+import { isUserAdmin } from '@/app/services/authService';
 
 // Helper function to verify authentication
 const verifyAuthentication = (): boolean => {
@@ -46,6 +47,7 @@ export default function NavBar({ topOffset = '0px' }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -67,6 +69,14 @@ export default function NavBar({ topOffset = '0px' }) {
     
     return () => clearInterval(interval);
   }, [router]);
+
+  useEffect(() => {
+    const auth = localStorage.getItem('auth');
+    if (auth) {
+      const authData = JSON.parse(auth);
+      setIsAdmin(isUserAdmin(authData));
+    }
+  }, []);
 
   const isActive = (path: string) => pathname === path;
 
@@ -91,6 +101,16 @@ export default function NavBar({ topOffset = '0px' }) {
           {item.label}
         </Link>
       ))}
+      {isAdmin && (
+        <Link 
+          href="/deleted-tickets"
+          className={`
+            relative px-2.5 py-1 text-sm font-medium rounded transition-all duration-200 text-red-600
+          `}
+        >
+          Deleted Tickets
+        </Link>
+      )}
     </>
   );
 

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { collection, getDocs, query, where, orderBy, Timestamp, updateDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, Timestamp, updateDoc, doc, getDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebaseConfig';
 import Link from 'next/link';
 import '../styles/reports.css';
@@ -26,6 +26,8 @@ import TableHeader from '../components/TableHeader';
 import { useTableColumns } from '../hooks/useTableColumns';
 import LocationField from '../components/LocationField';
 import { Location } from '@/lib/utils/location';
+import { isUserAdmin } from '@/app/services/authService';
+import { useToast } from "@/components/ui/use-toast";
 
 // Register ChartJS components
 ChartJS.register(
@@ -480,6 +482,7 @@ export default function GPONReportsPage() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [statusChangeId, setStatusChangeId] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const { columns, handleColumnResize, getColumnWidth } = useTableColumns('gpon');
 
@@ -487,6 +490,14 @@ export default function GPONReportsPage() {
   useEffect(() => {
     fetchIncidents();
   }, []); // Empty dependency array means it runs once on mount
+
+  useEffect(() => {
+    const auth = localStorage.getItem('auth');
+    if (auth) {
+      const authData = JSON.parse(auth);
+      setIsAdmin(isUserAdmin(authData));
+    }
+  }, []);
 
   // Apply client-side filters
   useEffect(() => {
@@ -888,6 +899,66 @@ export default function GPONReportsPage() {
   // Add this function after getPaginatedData
   const totalPages = Math.ceil(getSortedIncidents().length / entriesPerPage);
 
+  // Add delete functionality
+  const handleDelete = async (incident: GPONIncident) => {
+    if (!isAdmin) return;
+
+    const confirmDelete = window.confirm(`Are you sure you want to delete Ticket #${incident.incidentNumber} from GPON Reports and its Database entry?`);
+    if (!confirmDelete) return;
+
+    try {
+      const incidentRef = doc(db, 'gponIncidents', incident.id);
+      const counterRef = doc(db, 'counters', 'deletedTickets');
+      
+      await runTransaction(db, async (transaction) => {
+        // Get the current counter value
+        const counterDoc = await transaction.get(counterRef);
+        const newCount = (counterDoc.exists() ? counterDoc.data().count : 0) + 1;
+        
+        // Create the deleted ticket entry
+        const deletedTicketRef = doc(collection(db, 'deletedTickets'));
+        const auth = localStorage.getItem('auth');
+        const authData = auth ? JSON.parse(auth) : null;
+        
+        // Clean up the incident data
+        const cleanedIncident = {
+          ...incident,
+          fats: incident.fats || [],
+          fsps: incident.fsps || [],
+          stakeholders: incident.stakeholders || [],
+          remarks: incident.remarks || '',
+          location: incident.location || null,
+          locationUpdatedAt: incident.locationUpdatedAt || null,
+          closedBy: incident.closedBy || null,
+          faultEndTime: incident.faultEndTime || null
+        };
+        
+        transaction.set(deletedTicketRef, {
+          deletedTicketId: newCount,
+          originalTicketNumber: incident.incidentNumber,
+          sourceCollection: 'gponIncidents',
+          deletedAt: serverTimestamp(),
+          deletedBy: authData?.username || 'Unknown',
+          ...cleanedIncident
+        });
+        
+        // Update the counter
+        transaction.set(counterRef, { count: newCount }, { merge: true });
+        
+        // Delete the original incident
+        transaction.delete(incidentRef);
+      });
+
+      // Update local state
+      setIncidents(prev => prev.filter(inc => inc.id !== incident.id));
+      
+      alert('Ticket deleted successfully');
+    } catch (error) {
+      console.error('Error deleting ticket:', error);
+      alert('Failed to delete ticket. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -916,6 +987,7 @@ export default function GPONReportsPage() {
               cursor: 'pointer',
               fontSize: '16px'
             }}>
+              <span className="icon">🏠</span>
               Back to Home
             </button>
           </Link>
@@ -1281,15 +1353,28 @@ export default function GPONReportsPage() {
         return calculateTotalTime(incident);
       case 'actions':
         return (
-          <button
-            className="view-btn"
-            onClick={() => {
-              setSelectedIncident(incident);
-              setShowViewModal(true);
-            }}
-          >
-            View
-          </button>
+          <div className="flex gap-2 justify-center">
+            <button
+              className="view-btn"
+              onClick={() => {
+                setSelectedIncident(incident);
+                setShowViewModal(true);
+              }}
+            >
+              View
+            </button>
+            {isAdmin && (
+              <button
+                className="delete-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(incident);
+                }}
+              >
+                Delete
+              </button>
+            )}
+          </div>
         );
       default:
         return '';
@@ -1300,106 +1385,136 @@ export default function GPONReportsPage() {
     if (editingTimestamp === incident.id) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-                      <div style={{ position: 'relative', width: '100%' }}>
-                        <input
-                          type="text"
-                          value={selectedTimestamp ? new Date(selectedTimestamp).toLocaleString() : ''}
-                          onClick={(e) => {
-                            const input = document.createElement('input');
-                            input.type = 'datetime-local';
-                            input.value = selectedTimestamp;
-                            input.style.position = 'absolute';
-                            input.style.left = '-9999px';
-                            document.body.appendChild(input);
-                            input.showPicker();
-                            input.addEventListener('change', (e) => {
-                              setSelectedTimestamp((e.target as HTMLInputElement).value);
-                              document.body.removeChild(input);
-                            });
-                          }}
-                          readOnly
-                          style={{
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            border: '1px solid #AAB396',
-                            width: '100%',
-                            cursor: 'pointer',
-                            backgroundColor: 'white'
-                          }}
-                        />
-                      </div>
+          <div style={{ position: 'relative', width: '100%' }}>
+            <input
+              type="text"
+              value={selectedTimestamp ? new Date(selectedTimestamp).toLocaleString() : ''}
+              onClick={(e) => {
+                const input = document.createElement('input');
+                input.type = 'datetime-local';
+                input.value = selectedTimestamp;
+                input.style.position = 'absolute';
+                input.style.left = '-9999px';
+                document.body.appendChild(input);
+                input.showPicker();
+                input.addEventListener('change', (e) => {
+                  setSelectedTimestamp((e.target as HTMLInputElement).value);
+                  document.body.removeChild(input);
+                });
+              }}
+              readOnly
+              style={{
+                padding: '4px 8px',
+                borderRadius: '4px',
+                border: '1px solid #AAB396',
+                width: '100%',
+                cursor: 'pointer',
+                backgroundColor: 'white'
+              }}
+            />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const input = document.createElement('input');
+                input.type = 'datetime-local';
+                input.value = selectedTimestamp;
+                input.style.position = 'absolute';
+                input.style.left = '-9999px';
+                document.body.appendChild(input);
+                input.showPicker();
+                input.addEventListener('change', (e) => {
+                  setSelectedTimestamp((e.target as HTMLInputElement).value);
+                  document.body.removeChild(input);
+                });
+              }}
+              style={{
+                position: 'absolute',
+                right: '4px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                backgroundColor: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+            >
+              📅
+            </button>
+          </div>
           <div style={{ display: 'flex', gap: '4px', width: '100%', justifyContent: 'space-between' }}>
-                        <button
+            <button
               onClick={(e) => {
                 e.stopPropagation();
                 handleTimestampUpdate(incident.id);
               }}
-                          style={{
-                            backgroundColor: '#28a745',
-                            color: 'white',
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            border: 'none',
-                            cursor: 'pointer',
+              style={{
+                backgroundColor: '#28a745',
+                color: 'white',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                border: 'none',
+                cursor: 'pointer',
                 fontSize: '12px',
                 width: '48%'
-                          }}
-                        >
-                          Confirm
-                        </button>
-                        <button
+              }}
+            >
+              Confirm
+            </button>
+            <button
               onClick={(e) => {
                 e.stopPropagation();
-                            setEditingTimestamp(null);
-                            setSelectedTimestamp('');
-                          }}
-                          style={{
-                            backgroundColor: '#dc3545',
-                            color: 'white',
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            border: 'none',
-                            cursor: 'pointer',
+                setEditingTimestamp(null);
+                setSelectedTimestamp('');
+              }}
+              style={{
+                backgroundColor: '#dc3545',
+                color: 'white',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                border: 'none',
+                cursor: 'pointer',
                 fontSize: '12px',
                 width: '48%'
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       );
     }
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span>{incident.timestamp?.toDate().toLocaleString()}</span>
-                      <button
+        <span>{incident.timestamp?.toDate().toLocaleString()}</span>
+        <button
           onClick={(e) => {
             e.stopPropagation();
-                          setEditingTimestamp(incident.id);
-                          setSelectedTimestamp(
-                            incident.timestamp 
-                              ? new Date(incident.timestamp.toDate()).toISOString().slice(0, 16)
-                              : new Date().toISOString().slice(0, 16)
-                          );
-                        }}
-                        style={{
-                          backgroundColor: '#6c757d',
-                          color: 'white',
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontSize: '12px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}
-                      >
-                        <span>✏️</span>
-                        Edit
-                      </button>
-                    </div>
+            setEditingTimestamp(incident.id);
+            setSelectedTimestamp(
+              incident.timestamp
+                ? new Date(incident.timestamp.toDate()).toISOString().slice(0, 16)
+                : new Date().toISOString().slice(0, 16)
+            );
+          }}
+          style={{
+            backgroundColor: '#6c757d',
+            color: 'white',
+            padding: '2px 8px',
+            borderRadius: '4px',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}
+        >
+          <span>✏️</span>
+          Edit
+        </button>
+      </div>
     );
   }
 
@@ -1407,108 +1522,138 @@ export default function GPONReportsPage() {
     if (editingFaultEndTime === incident.id) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-                      <div style={{ position: 'relative', width: '100%' }}>
-                        <input
-                          type="text"
-                          value={selectedDateTime ? new Date(selectedDateTime).toLocaleString() : ''}
-                          onClick={(e) => {
-                            const input = document.createElement('input');
-                            input.type = 'datetime-local';
-                            input.value = selectedDateTime;
-                            input.style.position = 'absolute';
-                            input.style.left = '-9999px';
-                            document.body.appendChild(input);
-                            input.showPicker();
-                            input.addEventListener('change', (e) => {
-                              setSelectedDateTime((e.target as HTMLInputElement).value);
-                              document.body.removeChild(input);
-                            });
-                          }}
-                          readOnly
-                          style={{
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            border: '1px solid #AAB396',
-                            width: '100%',
-                            cursor: 'pointer',
-                            backgroundColor: 'white'
-                          }}
-                        />
-                      </div>
+          <div style={{ position: 'relative', width: '100%' }}>
+            <input
+              type="text"
+              value={selectedDateTime ? new Date(selectedDateTime).toLocaleString() : ''}
+              onClick={(e) => {
+                const input = document.createElement('input');
+                input.type = 'datetime-local';
+                input.value = selectedDateTime;
+                input.style.position = 'absolute';
+                input.style.left = '-9999px';
+                document.body.appendChild(input);
+                input.showPicker();
+                input.addEventListener('change', (e) => {
+                  setSelectedDateTime((e.target as HTMLInputElement).value);
+                  document.body.removeChild(input);
+                });
+              }}
+              readOnly
+              style={{
+                padding: '4px 8px',
+                borderRadius: '4px',
+                border: '1px solid #AAB396',
+                width: '100%',
+                cursor: 'pointer',
+                backgroundColor: 'white'
+              }}
+            />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const input = document.createElement('input');
+                input.type = 'datetime-local';
+                input.value = selectedDateTime;
+                input.style.position = 'absolute';
+                input.style.left = '-9999px';
+                document.body.appendChild(input);
+                input.showPicker();
+                input.addEventListener('change', (e) => {
+                  setSelectedDateTime((e.target as HTMLInputElement).value);
+                  document.body.removeChild(input);
+                });
+              }}
+              style={{
+                position: 'absolute',
+                right: '4px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                backgroundColor: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+            >
+              📅
+            </button>
+          </div>
           <div style={{ display: 'flex', gap: '4px', width: '100%', justifyContent: 'space-between' }}>
-                        <button
+            <button
               onClick={(e) => {
                 e.stopPropagation();
                 handleFaultEndTimeUpdate(incident.id);
               }}
-                          style={{
-                            backgroundColor: '#28a745',
-                            color: 'white',
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            border: 'none',
-                            cursor: 'pointer',
+              style={{
+                backgroundColor: '#28a745',
+                color: 'white',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                border: 'none',
+                cursor: 'pointer',
                 fontSize: '12px',
                 width: '48%'
-                          }}
-                        >
-                          Confirm
-                        </button>
-                        <button
+              }}
+            >
+              Confirm
+            </button>
+            <button
               onClick={(e) => {
                 e.stopPropagation();
-                            setEditingFaultEndTime(null);
-                            setSelectedDateTime('');
-                          }}
-                          style={{
-                            backgroundColor: '#dc3545',
-                            color: 'white',
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            border: 'none',
-                            cursor: 'pointer',
+                setEditingFaultEndTime(null);
+                setSelectedDateTime('');
+              }}
+              style={{
+                backgroundColor: '#dc3545',
+                color: 'white',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                border: 'none',
+                cursor: 'pointer',
                 fontSize: '12px',
                 width: '48%'
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       );
     }
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span>{incident.faultEndTime?.toDate().toLocaleString() || '-'}</span>
-                      {incident.status === 'Completed' && (
-                        <button
+        <span>{incident.faultEndTime?.toDate().toLocaleString() || '-'}</span>
+        {incident.status === 'Completed' && (
+          <button
             onClick={(e) => {
               e.stopPropagation();
-                            setEditingFaultEndTime(incident.id);
-                            setSelectedDateTime(
-                              incident.faultEndTime 
-                                ? new Date(incident.faultEndTime.toDate()).toISOString().slice(0, 16)
-                                : new Date().toISOString().slice(0, 16)
-                            );
-                          }}
-                          style={{
-                            backgroundColor: '#6c757d',
-                            color: 'white',
-                            padding: '2px 8px',
-                            borderRadius: '4px',
-                            border: 'none',
-                            cursor: 'pointer',
-                            fontSize: '12px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                        >
-                          <span>✏️</span>
-                          Edit
-                        </button>
-                      )}
-                    </div>
+              setEditingFaultEndTime(incident.id);
+              setSelectedDateTime(
+                incident.faultEndTime 
+                  ? new Date(incident.faultEndTime.toDate()).toISOString().slice(0, 16)
+                  : new Date().toISOString().slice(0, 16)
+              );
+            }}
+            style={{
+              backgroundColor: '#6c757d',
+              color: 'white',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+          >
+            <span>✏️</span>
+            Edit
+          </button>
+        )}
+      </div>
     );
   }
 
@@ -1516,9 +1661,9 @@ export default function GPONReportsPage() {
     if (statusChangeId === incident.id) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-                      <select
-                        value={selectedCloser}
-                        onChange={(e) => setSelectedCloser(e.target.value)}
+          <select
+            value={selectedCloser}
+            onChange={(e) => setSelectedCloser(e.target.value)}
             style={{
               width: '100%',
               padding: '8px',
@@ -1526,59 +1671,59 @@ export default function GPONReportsPage() {
               border: '1px solid #D4C9A8',
               backgroundColor: 'white'
             }}
-                      >
-                        <option value="">Select Ticket Closer</option>
-                        {closerOptions.map((person) => (
-                          <option key={person} value={person}>{person}</option>
-                        ))}
-                      </select>
+          >
+            <option value="">Select Ticket Closer</option>
+            {closerOptions.map((person) => (
+              <option key={person} value={person}>{person}</option>
+            ))}
+          </select>
           <div style={{ display: 'flex', gap: '4px', width: '100%', justifyContent: 'space-between' }}>
-                        <button 
+            <button 
               onClick={(e) => {
                 e.stopPropagation();
                 handleCloserSelection();
               }}
-                          disabled={!selectedCloser || updatingStatus}
-                          style={{
-                            backgroundColor: selectedCloser ? '#28a745' : '#6c757d',
-                            color: 'white',
-                            padding: '4px 8px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: selectedCloser && !updatingStatus ? 'pointer' : 'not-allowed',
+              disabled={!selectedCloser || updatingStatus}
+              style={{
+                backgroundColor: selectedCloser ? '#28a745' : '#6c757d',
+                color: 'white',
+                padding: '4px 8px',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: selectedCloser && !updatingStatus ? 'pointer' : 'not-allowed',
                 fontSize: '12px',
                 width: '48%'
-                          }}
-                        >
-                          {updatingStatus ? 'Updating...' : 'Confirm'}
-                        </button>
-                        <button
+              }}
+            >
+              {updatingStatus ? 'Updating...' : 'Confirm'}
+            </button>
+            <button
               onClick={(e) => {
                 e.stopPropagation();
-                            setStatusChangeId(null);
-                            setSelectedCloser('');
-                          }}
-                          style={{
-                            backgroundColor: '#dc3545',
-                            color: 'white',
-                            padding: '4px 8px',
-                            border: 'none',
+                setStatusChangeId(null);
+                setSelectedCloser('');
+              }}
+              style={{
+                backgroundColor: '#dc3545',
+                color: 'white',
+                padding: '4px 8px',
+                border: 'none',
                 borderRadius: '4px',
-                            cursor: 'pointer',
+                cursor: 'pointer',
                 fontSize: '12px',
                 width: '48%'
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       );
     }
     return (
-                    <select
-                      value={incident.status}
-                      onChange={(e) => handleStatusChange(e.target.value, incident.id)}
+      <select
+        value={incident.status}
+        onChange={(e) => handleStatusChange(e.target.value, incident.id)}
         style={{
           width: '100%',
           padding: '8px',
@@ -1586,11 +1731,11 @@ export default function GPONReportsPage() {
           border: '1px solid #D4C9A8',
           backgroundColor: 'white'
         }}
-                      disabled={updatingStatus}
-                    >
-                      <option value="In Progress">In Progress</option>
-                      <option value="Completed">Completed</option>
-                    </select>
+        disabled={updatingStatus}
+      >
+        <option value="In Progress">In Progress</option>
+        <option value="Completed">Completed</option>
+      </select>
     );
   }
 

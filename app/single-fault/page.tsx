@@ -101,6 +101,7 @@ export default function SingleFaultPage() {
   const [stakeholders, setStakeholders] = useState<string[]>([]);
   const [availableStakeholders, setAvailableStakeholders] = useState<string[]>([]);
   const [ticketGenerator, setTicketGenerator] = useState<string>('');
+  const [showTicketGeneratorInMessage, setShowTicketGeneratorInMessage] = useState(false);
   const [faultType, setFaultType] = useState<string>('');
   const [phoneNumber, setPhoneNumber] = useState<string>('');
   const [outageNodes, setOutageNodes] = useState({
@@ -246,7 +247,11 @@ export default function SingleFaultPage() {
         formattedMessage += `\n(${remarks})`;
       }
       
-      formattedMessage += `\n\nInformed to ${stakeholders.join(", ")}\nTicket Generator: ${ticketGenerator}\n\nTicket # ${nextIncidentNumber}`;
+      formattedMessage += `\n\nInformed to ${stakeholders.join(", ")}`;
+      if (showTicketGeneratorInMessage) {
+        formattedMessage += `\nTicket Generator: ${ticketGenerator}`;
+      }
+      formattedMessage += `\n\nTicket # ${nextIncidentNumber}`;
 
       // Update the incident output state
       setIncidentOutput(formattedMessage);
@@ -586,6 +591,7 @@ export default function SingleFaultPage() {
                       }
                     }}
                     label="Name of Called Person"
+                    required={true}
                   />
 
                   {showCustomStakeholder && (
@@ -637,6 +643,18 @@ export default function SingleFaultPage() {
                     <option key={person} value={person}>{person}</option>
                   ))}
                 </select>
+                <div className="flex items-center mt-2">
+                  <input
+                    type="checkbox"
+                    id="showTicketGenerator"
+                    checked={showTicketGeneratorInMessage}
+                    onChange={(e) => setShowTicketGeneratorInMessage(e.target.checked)}
+                    className="form-checkbox h-4 w-4 text-blue-600"
+                  />
+                  <label htmlFor="showTicketGenerator" className="ml-2 text-sm text-gray-700">
+                    Show in message
+                  </label>
+                </div>
               </div>
             </div>
 

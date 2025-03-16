@@ -28,6 +28,8 @@ import { useTableColumns } from '../hooks/useTableColumns';
 import LocationField from '../components/LocationField';
 import { Location } from '@/lib/utils/location';
 import { Incident } from '../types/incident';
+import { isUserAdmin } from '@/app/services/authService';
+import { runTransaction, serverTimestamp } from 'firebase/firestore';
 
 // Register ChartJS components
 ChartJS.register(
@@ -471,9 +473,15 @@ export default function ReportsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [tableTheme, setTableTheme] = useState('theme-modern-blue');
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     fetchIncidents();
+    const auth = localStorage.getItem('auth');
+    if (auth) {
+      const authData = JSON.parse(auth);
+      setIsAdmin(isUserAdmin(authData));
+    }
   }, []);
 
   const fetchIncidents = async () => {
@@ -881,6 +889,77 @@ export default function ReportsPage() {
 
   const totalPages = Math.ceil(getSortedIncidents().length / entriesPerPage);
 
+  // Add delete functionality
+  const handleDelete = async (incident: any) => {
+    if (!isAdmin) return;
+
+    const confirmDelete = window.confirm(`Are you sure you want to delete Ticket #${incident.incidentNumber} from Reports and its Database entry?`);
+    if (!confirmDelete) return;
+
+    try {
+      const incidentRef = doc(db, 'incidents', incident.id);
+      const counterRef = doc(db, 'counters', 'deletedTickets');
+      
+      await runTransaction(db, async (transaction) => {
+        // Get the current counter value
+        const counterDoc = await transaction.get(counterRef);
+        const newCount = (counterDoc.exists() ? counterDoc.data().count : 0) + 1;
+        
+        // Create the deleted ticket entry
+        const deletedTicketRef = doc(collection(db, 'deletedTickets'));
+        const auth = localStorage.getItem('auth');
+        const authData = auth ? JSON.parse(auth) : null;
+        
+        // Clean up the incident data
+        const cleanedIncident = {
+          ...incident,
+          nodes: {
+            nodeA: incident.nodes?.nodeA || '',
+            nodeB: incident.nodes?.nodeB || '',
+            nodeC: incident.nodes?.nodeC || '',
+            nodeD: incident.nodes?.nodeD || ''
+          },
+          outageNodes: incident.outageNodes || {
+            nodeA: false,
+            nodeB: false,
+            nodeC: false,
+            nodeD: false
+          },
+          stakeholders: incident.stakeholders || [],
+          remarks: incident.remarks || '',
+          location: incident.location || null,
+          locationUpdatedAt: incident.locationUpdatedAt || null,
+          closedBy: incident.closedBy || null,
+          faultEndTime: incident.faultEndTime || null,
+          timestamp: incident.timestamp || serverTimestamp()
+        };
+        
+        transaction.set(deletedTicketRef, {
+          deletedTicketId: newCount,
+          originalTicketNumber: incident.incidentNumber,
+          sourceCollection: 'incidents',
+          deletedAt: serverTimestamp(),
+          deletedBy: authData?.username || 'Unknown',
+          ...cleanedIncident
+        });
+        
+        // Update the counter
+        transaction.set(counterRef, { count: newCount }, { merge: true });
+        
+        // Delete the original incident
+        transaction.delete(incidentRef);
+      });
+
+      // Update local state
+      setIncidents(prev => prev.filter(inc => inc.id !== incident.id));
+      
+      alert('Ticket deleted successfully');
+    } catch (error) {
+      console.error('Error deleting ticket:', error);
+      alert('Failed to delete ticket. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -918,6 +997,7 @@ export default function ReportsPage() {
               fontSize: '16px',
               marginTop: '10px'
             }}>
+              <span className="icon">🏠</span>
               Back to Home
             </button>
           </Link>
@@ -1254,12 +1334,22 @@ export default function ReportsPage() {
         return calculateTotalTime(incident);
       case 'actions':
         return (
-          <button
-            className="view-btn"
-            onClick={() => setSelectedIncident(incident)}
-          >
-            View
-          </button>
+          <div className="flex gap-2 justify-center">
+            <button
+              className="view-btn"
+              onClick={() => setSelectedIncident(incident)}
+            >
+              View
+            </button>
+            {isAdmin && (
+              <button
+                className="delete-btn"
+                onClick={() => handleDelete(incident)}
+              >
+                Delete
+              </button>
+            )}
+          </div>
         );
       default:
         return '';

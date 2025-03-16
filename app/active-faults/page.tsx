@@ -32,6 +32,16 @@ interface Fault {
   stakeholders?: string[];
 }
 
+// Add new theme interface
+interface ColorTheme {
+  name: string;
+  colors: {
+    low: string;
+    medium: string;
+    high: string;
+  };
+}
+
 // Loading component to display while the main content is loading
 function LoadingFaults() {
   return (
@@ -65,10 +75,65 @@ function ActiveFaultsContent() {
   const searchParams = useSearchParams();
   const source = searchParams.get('source') || 'navbar';
   const isFromLogin = source === 'login';
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [mounted, setMounted] = useState(false);
+  
+  // Add new state for theme
+  const [selectedTheme, setSelectedTheme] = useState<string>('default');
+  
+  // Define color themes
+  const colorThemes: { [key: string]: ColorTheme } = {
+    default: {
+      name: 'Default',
+      colors: {
+        low: 'bg-yellow-200',
+        medium: 'bg-orange-200',
+        high: 'bg-red-200'
+      }
+    },
+    dark: {
+      name: 'Dark',
+      colors: {
+        low: 'bg-yellow-300',
+        medium: 'bg-orange-300',
+        high: 'bg-red-300'
+      }
+    },
+    intense: {
+      name: 'Intense',
+      colors: {
+        low: 'bg-yellow-400',
+        medium: 'bg-orange-400',
+        high: 'bg-red-400'
+      }
+    },
+    subtle: {
+      name: 'Subtle',
+      colors: {
+        low: 'bg-yellow-100',
+        medium: 'bg-orange-100',
+        high: 'bg-red-100'
+      }
+    }
+  };
 
   useEffect(() => {
     fetchFaults();
   }, [activeTab]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+
+    return () => clearInterval(timer);
+  }, [mounted]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleBackToLogin = () => {
     // Check if user is authenticated
@@ -222,26 +287,81 @@ function ActiveFaultsContent() {
     return sortConfig.direction === 'asc' ? '↑' : '↓';
   };
 
+  function calculateDuration(timestamp: any) {
+    if (!timestamp) return '-';
+    try {
+      const start = timestamp.toDate().getTime();
+      const now = new Date().getTime();
+      const diff = now - start;
+      
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      
+      return `${hours}h${minutes}m`;
+    } catch (error) {
+      return '-';
+    }
+  }
+
+  // Update getRowColorClass to use the selected theme
+  function getRowColorClass(timestamp: any) {
+    if (!timestamp) return '';
+    try {
+      const start = timestamp.toDate().getTime();
+      const now = new Date().getTime();
+      const diffHours = (now - start) / (1000 * 60 * 60);
+      
+      const theme = colorThemes[selectedTheme];
+      
+      if (diffHours <= 2) {
+        return 'bg-transparent';
+      } else if (diffHours <= 4) {
+        return theme.colors.low;
+      } else if (diffHours <= 8) {
+        return theme.colors.medium;
+      } else {
+        return theme.colors.high;
+      }
+    } catch (error) {
+      return '';
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#FFF8E8]">
       {!isFromLogin && <NavBar topOffset="0px" />}
       
       <div className="p-6" style={{ paddingTop: !isFromLogin ? '60px' : '20px' }}>
         <div className="max-w-7xl mx-auto">
-          {/* Header */}
+          {/* Header with Theme Selector */}
           <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-[#4A4637]">Active Faults</h1>
-            {isFromLogin && (
+            <div className="flex items-center gap-4">
+              <h1 className="text-3xl font-bold text-[#4A4637]">Active Faults</h1>
+              <div className="ml-4">
+                <select
+                  value={selectedTheme}
+                  onChange={(e) => setSelectedTheme(e.target.value)}
+                  className="px-3 py-2 border border-[#D4C9A8] rounded-lg bg-white text-[#4A4637] focus:outline-none focus:ring-2 focus:ring-[#4A4637]"
+                >
+                  {Object.entries(colorThemes).map(([key, theme]) => (
+                    <option key={key} value={key}>
+                      {theme.name} Theme
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {isFromLogin ? (
               <button 
                 onClick={handleBackToLogin}
                 className="px-4 py-2 bg-[#4A4637] text-white rounded-lg hover:bg-[#635C48] transition-colors"
               >
                 Back to Login
               </button>
-            )}
-            {!isFromLogin && (
+            ) : (
               <Link href="/">
                 <button className="px-4 py-2 bg-[#4A4637] text-white rounded-lg hover:bg-[#635C48] transition-colors">
+                  <span className="icon">🏠 </span>
                   Back to Home
                 </button>
               </Link>
@@ -293,13 +413,13 @@ function ActiveFaultsContent() {
                   <thead>
                     <tr className="bg-[#4A4637] text-white">
                       <th 
-                        className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                        className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48] w-[12%]"
                         onClick={() => handleSort('incidentNumber')}
                       >
                         Ticket # {getSortIndicator('incidentNumber')}
                       </th>
                       <th 
-                        className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                        className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48] w-[15%]"
                         onClick={() => handleSort('timestamp')}
                       >
                         Fault Occurred {getSortIndicator('timestamp')}
@@ -307,31 +427,31 @@ function ActiveFaultsContent() {
                       {activeTab === 'gpon' ? (
                         <>
                           <th 
-                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48] w-[12%]"
                             onClick={() => handleSort('exchangeName')}
                           >
                             Exchange {getSortIndicator('exchangeName')}
                           </th>
                           <th 
-                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48] w-[12%]"
                             onClick={() => handleSort('fdh')}
                           >
                             FDH {getSortIndicator('fdh')}
                           </th>
                           <th 
-                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48] w-[12%]"
                             onClick={() => handleSort('fats')}
                           >
                             FAT {getSortIndicator('fats')}
                           </th>
                           <th 
-                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48] w-[12%]"
                             onClick={() => handleSort('oltIp')}
                           >
                             OLT IP {getSortIndicator('oltIp')}
                           </th>
                           <th 
-                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48] w-[12%]"
                             onClick={() => handleSort('fsps')}
                           >
                             F/S/P {getSortIndicator('fsps')}
@@ -340,25 +460,25 @@ function ActiveFaultsContent() {
                       ) : (
                         <>
                           <th 
-                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48] w-[15%]"
                             onClick={() => handleSort('domain')}
                           >
                             Domain {getSortIndicator('domain')}
                           </th>
                           <th 
-                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48] w-[12%]"
                             onClick={() => handleSort('exchangeName')}
                           >
                             Exchange {getSortIndicator('exchangeName')}
                           </th>
                           <th 
-                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48] w-[12%]"
                             onClick={() => handleSort('faultType')}
                           >
                             Fault Type {getSortIndicator('faultType')}
                           </th>
                           <th 
-                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                            className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48] w-[20%]"
                             onClick={() => handleSort('nodes')}
                           >
                             Nodes {getSortIndicator('nodes')}
@@ -366,7 +486,13 @@ function ActiveFaultsContent() {
                         </>
                       )}
                       <th 
-                        className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48]"
+                        className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48] w-[12%]"
+                        onClick={() => handleSort('timestamp')}
+                      >
+                        Fault Counter (Hrs) {getSortIndicator('timestamp')}
+                      </th>
+                      <th 
+                        className="px-4 py-3 text-left cursor-pointer hover:bg-[#635C48] w-[12%]"
                         onClick={() => handleSort('status')}
                       >
                         Status {getSortIndicator('status')}
@@ -377,10 +503,10 @@ function ActiveFaultsContent() {
                     {faults.map((fault) => (
                       <tr 
                         key={fault.id}
-                        className="border-b border-[#D4C9A8] hover:bg-[#FFF8E8] transition-colors"
+                        className={`border-b border-[#D4C9A8] transition-colors hover:bg-[#FFF8E8] ${getRowColorClass(fault.timestamp)}`}
                       >
-                        <td className="px-4 py-3">{fault.incidentNumber || `TICKET-${fault.id.slice(0, 6)}`}</td>
-                        <td className="px-4 py-3">{formatDate(fault.timestamp)}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">{fault.incidentNumber || `TICKET-${fault.id.slice(0, 6)}`}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">{formatDate(fault.timestamp)}</td>
                         {activeTab === 'gpon' ? (
                           <>
                             <td className="px-4 py-3">{fault.exchangeName || '-'}</td>
@@ -391,24 +517,21 @@ function ActiveFaultsContent() {
                           </>
                         ) : (
                           <>
-                            <td className="px-4 py-3">{fault.domain || '-'}</td>
-                            <td className="px-4 py-3">{fault.exchangeName || '-'}</td>
-                            <td className="px-4 py-3">{fault.faultType || '-'}</td>
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-3 whitespace-normal">{fault.domain || '-'}</td>
+                            <td className="px-4 py-3 whitespace-normal">{fault.exchangeName || '-'}</td>
+                            <td className="px-4 py-3 whitespace-normal">{fault.faultType || '-'}</td>
+                            <td className="px-4 py-3 whitespace-normal break-words">
                               {(fault.nodes?.nodeA || fault.nodeA) && (fault.nodes?.nodeB || fault.nodeB)
                                 ? `${fault.nodes?.nodeA || fault.nodeA} ⟶ ${fault.nodes?.nodeB || fault.nodeB}`
                                 : fault.nodes?.nodeA || fault.nodeA || fault.nodes?.nodeB || fault.nodeB || '-'}
                             </td>
                           </>
                         )}
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-1 rounded-full text-sm ${
-                            fault.status?.toLowerCase().includes('in progress') 
-                              ? 'bg-blue-100 text-blue-800'
-                              : 'bg-green-100 text-green-800'
-                          }`}>
+                        <td className="px-4 py-3 whitespace-nowrap">{calculateDuration(fault.timestamp)}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center">
+                          <div className="inline-block px-2 py-1 rounded-full text-sm bg-blue-100 text-blue-800" style={{ whiteSpace: 'nowrap' }}>
                             {fault.status || 'Unknown'}
-                          </span>
+                          </div>
                         </td>
                       </tr>
                     ))}

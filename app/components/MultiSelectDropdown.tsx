@@ -5,18 +5,24 @@ interface MultiSelectDropdownProps {
   selectedValues: string[];
   onChange: (selected: string[]) => void;
   label: string;
+  required?: boolean;
 }
 
 export default function MultiSelectDropdown({ 
   options, 
   selectedValues, 
   onChange,
-  label 
+  label,
+  required = false 
 }: MultiSelectDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [customValue, setCustomValue] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
+  const [touched, setTouched] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const isValid = !required || selectedValues.length > 0;
+  const showError = required && touched && selectedValues.length === 0;
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -60,10 +66,13 @@ export default function MultiSelectDropdown({
 
   return (
     <div className="multi-select-container" ref={dropdownRef}>
-      <label className="dropdown-label">{label}</label>
+      <label className="dropdown-label">{label}{required && <span className="text-red-500">*</span>}</label>
       <div 
-        className={`selected-display ${isOpen ? 'open' : ''}`}
-        onClick={() => setIsOpen(!isOpen)}
+        className={`selected-display ${isOpen ? 'open' : ''} ${showError ? 'error' : ''}`}
+        onClick={() => {
+          setIsOpen(!isOpen);
+          setTouched(true);
+        }}
       >
         <div className="selected-text">
           {selectedValues.length ? (
@@ -180,6 +189,10 @@ export default function MultiSelectDropdown({
 
         .selected-display.open {
           border-color: #007bff;
+        }
+
+        .selected-display.error {
+          border-color: #dc2626;
         }
 
         .selected-text {
@@ -366,6 +379,11 @@ export default function MultiSelectDropdown({
           to {
             opacity: 1;
           }
+        }
+
+        .text-red-500 {
+          color: #dc2626;
+          margin-left: 4px;
         }
       `}</style>
     </div>

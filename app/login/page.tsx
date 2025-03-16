@@ -3,9 +3,10 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebaseConfig';
-import { comparePassword } from '@/lib/utils/password';
+import { comparePasswords } from '@/lib/utils/password';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import Link from 'next/link';
+import { authenticateUser } from '@/app/services/authService';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -41,36 +42,8 @@ export default function LoginPage() {
     localStorage.removeItem('auth');
     document.cookie = 'auth=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0; domain=' + window.location.hostname;
 
-    const trimmedUsername = username.trim();
-
     try {
-      const authUsersRef = collection(db, 'auth_users');
-      const q = query(authUsersRef, where('username', '==', trimmedUsername));
-      const querySnapshot = await getDocs(q);
-
-      if (querySnapshot.empty) {
-        setError('Invalid username or password');
-        setLoading(false);
-        return;
-      }
-
-      const userDoc = querySnapshot.docs[0];
-      const userData = userDoc.data();
-
-      const isValidPassword = await comparePassword(password, userData.password);
-
-      if (!isValidPassword) {
-        setError('Invalid username or password');
-        setLoading(false);
-        return;
-      }
-
-      const authData = {
-        username: userData.username,
-        role: userData.role,
-        isAuthenticated: true,
-        timestamp: new Date().getTime() // Add timestamp for session expiry checks
-      };
+      const authData = await authenticateUser(username, password);
       
       localStorage.setItem('auth', JSON.stringify(authData));
       document.cookie = `auth=${JSON.stringify(authData)}; path=/; max-age=86400; samesite=strict`; // 24 hours
@@ -79,7 +52,7 @@ export default function LoginPage() {
       router.replace('/');
     } catch (err) {
       console.error('Login error:', err);
-      setError('An error occurred during login. Please try again.');
+      setError('Invalid username or password');
     } finally {
       setLoading(false);
     }

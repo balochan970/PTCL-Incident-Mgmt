@@ -113,6 +113,7 @@ interface Fault {
 export default function MultipleFaults() {
   const [domain, setDomain] = useState<string>('');
   const [ticketGenerator, setTicketGenerator] = useState<string>('');
+  const [showTicketGeneratorInMessage, setShowTicketGeneratorInMessage] = useState(false);
   const [exchangeName, setExchangeName] = useState<string>('');
   const [stakeholderGroup, setStakeholderGroup] = useState<string>('');
   const [selectedStakeholders, setSelectedStakeholders] = useState<string[]>([]);
@@ -276,7 +277,10 @@ export default function MultipleFaults() {
         formattedMessage += `\nTicket # ${incidentNumbers[index]}\n\n`;
       });
 
-      formattedMessage += `Informed to ${selectedStakeholders.join(", ")}\nTicket Generator: ${ticketGenerator}`;
+      formattedMessage += `Informed to ${selectedStakeholders.join(", ")}`;
+      if (showTicketGeneratorInMessage) {
+        formattedMessage += `\nTicket Generator: ${ticketGenerator}`;
+      }
 
       setIncidentOutput(formattedMessage);
       alert('Multiple Faults Incidents Created Successfully!');
@@ -420,8 +424,8 @@ export default function MultipleFaults() {
                 </select>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Ticket Generator</label>
+              <div className="form-group card ticket-section">
+                <h3>Ticket Generator</h3>
                 <select
                   value={ticketGenerator}
                   onChange={(e) => setTicketGenerator(e.target.value)}
@@ -436,6 +440,18 @@ export default function MultipleFaults() {
                     <option key={person} value={person}>{person}</option>
                   ))}
                 </select>
+                <div className="flex items-center mt-2">
+                  <input
+                    type="checkbox"
+                    id="showTicketGenerator"
+                    checked={showTicketGeneratorInMessage}
+                    onChange={(e) => setShowTicketGeneratorInMessage(e.target.checked)}
+                    className="form-checkbox h-4 w-4 text-blue-600"
+                  />
+                  <label htmlFor="showTicketGenerator" className="ml-2 text-sm text-gray-700">
+                    Show in message
+                  </label>
+                </div>
               </div>
 
               <div className="form-group">
@@ -452,6 +468,7 @@ export default function MultipleFaults() {
                     }
                   }}
                   label="Name of Called Person"
+                  required={true}
                 />
               </div>
 

@@ -74,6 +74,7 @@ const phoneContacts = [
 
 export default function GPONFaultsPage() {
   const [ticketGenerator, setTicketGenerator] = useState<string>('');
+  const [showTicketGeneratorInMessage, setShowTicketGeneratorInMessage] = useState(false);
   const [exchangeName, setExchangeName] = useState<string>('');
   const [stakeholders, setStakeholders] = useState<string[]>([]);
   const [customStakeholder, setCustomStakeholder] = useState('');
@@ -215,8 +216,10 @@ export default function GPONFaultsPage() {
         formattedMessage += `Ticket #: ${incidentNumbers[index]}\n\n`;
       });
 
-      formattedMessage += `Informed to: ${stakeholders.join(", ")}\n`;
-      formattedMessage += `Ticket Generator: ${ticketGenerator}`;
+      formattedMessage += `Informed to: ${stakeholders.join(", ")}`;
+      if (showTicketGeneratorInMessage) {
+        formattedMessage += `\nTicket Generator: ${ticketGenerator}`;
+      }
 
       setIncidentOutput(formattedMessage);
       alert('GPON Faults Created Successfully!');
@@ -328,19 +331,33 @@ export default function GPONFaultsPage() {
 
               <div className="form-group">
                 <label className="form-label">Ticket Generator</label>
-                <select
-                  className="form-select"
-                  value={ticketGenerator}
-                  onChange={(e) => setTicketGenerator(e.target.value)}
-                  required
-                >
-                  <option value="">Select Ticket Generator</option>
-                  {switchAccessTicketGenerators.map((generator) => (
-                    <option key={generator} value={generator}>
-                      {generator}
-                    </option>
-                  ))}
-                </select>
+                <div className="bg-[#fdf6e7] p-4 rounded-lg border border-[#e6d5b0]">
+                  <h2 className="text-lg font-semibold mb-2">Ticket Generator</h2>
+                  <select
+                    className="form-select"
+                    value={ticketGenerator}
+                    onChange={(e) => setTicketGenerator(e.target.value)}
+                    required
+                  >
+                    <option value="">Select Ticket Generator</option>
+                    {switchAccessTicketGenerators.map((generator) => (
+                      <option key={generator} value={generator}>
+                        {generator}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex items-center mt-2">
+                    <input
+                      type="checkbox"
+                      checked={showTicketGeneratorInMessage}
+                      onChange={(e) => setShowTicketGeneratorInMessage(e.target.checked)}
+                      className="form-checkbox h-4 w-4 text-blue-600"
+                    />
+                    <label className="ml-2 text-sm text-gray-700">
+                      Show in message
+                    </label>
+                  </div>
+                </div>
               </div>
 
               <div className="form-group">
@@ -357,6 +374,7 @@ export default function GPONFaultsPage() {
                     }
                   }}
                   label="Name of Called Person"
+                  required={true}
                 />
               </div>
             </div>
