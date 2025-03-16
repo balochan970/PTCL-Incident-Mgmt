@@ -1,8 +1,15 @@
-const { initializeApp } = require('firebase/app');
-const { getFirestore, collection, addDoc, query, where, getDocs } = require('firebase/firestore');
-const bcryptjs = require('bcryptjs');
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, addDoc, query, where, getDocs, DocumentReference, Timestamp } from 'firebase/firestore';
+import * as bcryptjs from 'bcryptjs';
 
-const hashPassword = async (password) => {
+interface AdminUser {
+  username: string;
+  password: string;
+  role: string;
+  createdAt: Timestamp;
+}
+
+const hashPassword = async (password: string): Promise<string> => {
   const salt = await bcryptjs.genSalt(10);
   return bcryptjs.hash(password, salt);
 };
@@ -19,7 +26,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-async function addAdminUser() {
+async function addAdminUser(): Promise<void> {
   try {
     console.log('Starting admin user creation...');
 
@@ -37,12 +44,14 @@ async function addAdminUser() {
     // Create admin user with hashed password
     const hashedPassword = await hashPassword('adminofnmsktr2@1234');
     
-    const docRef = await addDoc(authUsersRef, {
+    const adminUser: AdminUser = {
       username: 'administrator',
       password: hashedPassword,
       role: 'admin',
-      createdAt: new Date()
-    });
+      createdAt: Timestamp.now()
+    };
+
+    const docRef = await addDoc(authUsersRef, adminUser);
 
     console.log(`Created admin user with ID: ${docRef.id}`);
 

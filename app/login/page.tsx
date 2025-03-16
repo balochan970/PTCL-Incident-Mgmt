@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebaseConfig';
-import { comparePasswords } from '@/lib/utils/password';
+import { comparePassword } from '@/lib/utils/password';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import Link from 'next/link';
 import { authenticateUser } from '@/app/services/authService';

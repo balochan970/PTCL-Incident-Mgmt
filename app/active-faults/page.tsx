@@ -337,7 +337,7 @@ function ActiveFaultsContent() {
           <div className="flex justify-between items-center mb-8">
             <div className="flex items-center gap-4">
               <h1 className="text-3xl font-bold text-[#4A4637]">Active Faults</h1>
-              <div className="ml-4">
+              <div className="flex items-center gap-4">
                 <select
                   value={selectedTheme}
                   onChange={(e) => setSelectedTheme(e.target.value)}
@@ -349,6 +349,25 @@ function ActiveFaultsContent() {
                     </option>
                   ))}
                 </select>
+                
+                {/* Color Legend Box */}
+                <div className="flex items-center px-4 py-2 bg-white rounded-lg border border-[#D4C9A8] min-w-[150px]">
+                  <span className="text-sm font-medium text-[#4A4637] mr-3">Impact:</span>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2 min-w-[60px]">
+                      <div className={`w-3 h-3 rounded-full ${colorThemes[selectedTheme].colors.low}`}></div>
+                      <span className="text-xs text-[#4A4637] whitespace-nowrap">2-4h</span>
+                    </div>
+                    <div className="flex items-center gap-2 min-w-[60px]">
+                      <div className={`w-3 h-3 rounded-full ${colorThemes[selectedTheme].colors.medium}`}></div>
+                      <span className="text-xs text-[#4A4637] whitespace-nowrap">4-8h</span>
+                    </div>
+                    <div className="flex items-center gap-2 min-w-[60px]">
+                      <div className={`w-3 h-3 rounded-full ${colorThemes[selectedTheme].colors.high}`}></div>
+                      <span className="text-xs text-[#4A4637] whitespace-nowrap">8h+</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             {isFromLogin ? (
