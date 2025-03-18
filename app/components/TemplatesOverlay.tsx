@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebaseConfig';
 
@@ -35,6 +35,7 @@ export default function TemplatesOverlay({ onClose, onApplyTemplate }: Templates
   const [showForm, setShowForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const overlayRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState<Omit<Template, 'id'>>({
     title: '',
     domain: '',
@@ -53,6 +54,13 @@ export default function TemplatesOverlay({ onClose, onApplyTemplate }: Templates
 
   useEffect(() => {
     fetchTemplates();
+  }, []);
+
+  // Add useEffect to auto-focus the overlay when component mounts
+  useEffect(() => {
+    if (overlayRef.current) {
+      overlayRef.current.focus();
+    }
   }, []);
 
   const fetchTemplates = async () => {
@@ -181,7 +189,16 @@ export default function TemplatesOverlay({ onClose, onApplyTemplate }: Templates
   });
 
   return (
-    <div className="templates-overlay">
+    <div 
+      className="templates-overlay"
+      tabIndex={0}
+      ref={overlayRef}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          onClose();
+        }
+      }}
+    >
       <div className="templates-header">
         <div className="header-content">
           <h2>Templates</h2>

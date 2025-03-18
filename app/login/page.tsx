@@ -59,20 +59,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FFF8E8]">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-lg border-2 border-[#D4C9A8]">
+    <div className="min-h-screen flex items-center justify-center bg-[#FFF8E8] dark:bg-dark-background">
+      <div className="max-w-md w-full space-y-8 p-8 bg-white dark:bg-dark-surface rounded-lg shadow-lg border-2 border-[#D4C9A8] dark:border-dark-border">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-[#4A4637]">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-[#4A4637] dark:text-dark-text">
             ROC Incident Management
           </h2>
-          <p className="mt-2 text-center text-sm text-[#635C48]">
+          <p className="mt-2 text-center text-sm text-[#635C48] dark:text-dark-text/80">
             "Please sign in to continue"
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
           <div className="rounded-md -space-y-px">
             <div className="mb-4">
-              <label htmlFor="username" className="block text-sm font-medium text-[#4A4637] mb-1">
+              <label htmlFor="username" className="block text-sm font-medium text-[#4A4637] dark:text-dark-text mb-1">
                 Username
               </label>
               <input
@@ -80,14 +80,14 @@ export default function LoginPage() {
                 name="username"
                 type="text"
                 required
-                className="appearance-none relative block w-full px-3 py-2 border border-[#D4C9A8] placeholder-[#AAB396] text-[#4A4637] rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A4637] focus:border-[#4A4637] sm:text-sm bg-[#FFF8E8]"
+                className="appearance-none relative block w-full px-3 py-2 border border-[#D4C9A8] dark:border-dark-border placeholder-[#AAB396] dark:placeholder-dark-text/50 text-[#4A4637] dark:text-dark-text rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A4637] dark:focus:ring-dark-primary focus:border-[#4A4637] dark:focus:border-dark-primary sm:text-sm bg-[#FFF8E8] dark:bg-dark-background"
                 placeholder="Enter your username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-[#4A4637] mb-1">
+              <label htmlFor="password" className="block text-sm font-medium text-[#4A4637] dark:text-dark-text mb-1">
                 Password
               </label>
               <div className="relative">
@@ -96,14 +96,14 @@ export default function LoginPage() {
                   name="password"
                   type={showPassword ? "text" : "password"}
                   required
-                  className="appearance-none relative block w-full px-3 py-2 border border-[#D4C9A8] placeholder-[#AAB396] text-[#4A4637] rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A4637] focus:border-[#4A4637] sm:text-sm bg-[#FFF8E8]"
+                  className="appearance-none relative block w-full px-3 py-2 border border-[#D4C9A8] dark:border-dark-border placeholder-[#AAB396] dark:placeholder-dark-text/50 text-[#4A4637] dark:text-dark-text rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A4637] dark:focus:ring-dark-primary focus:border-[#4A4637] dark:focus:border-dark-primary sm:text-sm bg-[#FFF8E8] dark:bg-dark-background"
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#4A4637] hover:text-[#635C48] focus:outline-none"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#4A4637] dark:text-dark-text hover:text-[#635C48] dark:hover:text-dark-text/80 focus:outline-none"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? <FaEyeSlash size={16} /> : <FaEye size={16} />}
@@ -113,7 +113,7 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="text-red-600 text-sm text-center bg-red-50 p-2 rounded">
+            <div className="text-red-600 dark:text-red-400 text-sm text-center bg-red-50 dark:bg-red-900/20 p-2 rounded">
               {error}
             </div>
           )}
@@ -122,17 +122,17 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#4A4637] hover:bg-[#635C48] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#4A4637] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#4A4637] dark:bg-dark-primary hover:bg-[#635C48] dark:hover:bg-dark-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#4A4637] dark:focus:ring-dark-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </div>
         </form>
 
-        <div className="mt-8 pt-6 border-t-2 border-[#D4C9A8]">
+        <div className="mt-8 pt-6 border-t-2 border-[#D4C9A8] dark:border-dark-border">
           <Link 
             href="/active-faults?source=login" 
-            className="block w-full text-center py-3 px-4 rounded-lg bg-white border-2 border-[#4A4637] text-[#4A4637] hover:bg-[#4A4637] hover:text-white transition-all duration-200 shadow-md"
+            className="block w-full text-center py-3 px-4 rounded-lg bg-white dark:bg-dark-surface border-2 border-[#4A4637] dark:border-dark-primary text-[#4A4637] dark:text-dark-text hover:bg-[#4A4637] hover:text-white dark:hover:bg-dark-primary transition-all duration-200 shadow-md"
           >
             <div className="flex items-center justify-center gap-2">
               <span className="text-xl">📊</span>

@@ -126,7 +126,14 @@ export default function HomePage() {
           <Link href="/knowledgebase" className="card">
             <div className="card-content">
               <div className="card-icon">📚</div>
-              <h2>KnowledgeBase</h2>
+              <h2>Database</h2>
+            </div>
+          </Link>
+
+          <Link href="/knowledgebase-hub" className="card">
+            <div className="card-content">
+              <div className="card-icon">📖</div>
+              <h2>Knowledge Base</h2>
             </div>
           </Link>
         </div>

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { collection, getDocs, query, where, orderBy, Timestamp, updateDoc, doc, getDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebaseConfig';
 import Link from 'next/link';
@@ -28,6 +28,7 @@ import LocationField from '../components/LocationField';
 import { Location } from '@/lib/utils/location';
 import { isUserAdmin } from '@/app/services/authService';
 import { useToast } from "@/components/ui/use-toast";
+import ExportButton from '../components/ExportButton';
 
 // Register ChartJS components
 ChartJS.register(
@@ -41,6 +42,33 @@ ChartJS.register(
   ArcElement,
   ChartDataLabels
 );
+
+// Add the morningTeamMembers constant
+const morningTeamMembers = [
+  'A. Rehman Splicer',
+  'A. Shahid Splicer',
+  'Adnan AM',
+  'Adnan Splicer',
+  'Akhtar Labor',
+  'Faizan Splicer',
+  'Ghazi Team Lead',
+  'Gulshan Splicer',
+  'Hafeez Splicer',
+  'Hassan Splicer',
+  'Hasnain Splicer',
+  'Junaid Splicer',
+  'Kaleem Ansari Sb',
+  'Kareem Splicer',
+  'Owais Team Lead',
+  'Rasheed Splicer',
+  'S. Alam AM',
+  'Safeer Splicer',
+  'Sameer Splicer',
+  'Usama Splicer',
+  'Uzair Splicer',
+  'Zain Splicer',
+  'Zubair Splicer'
+];
 
 interface GPONIncident {
   id: string;
@@ -58,6 +86,7 @@ interface GPONIncident {
   faultEndTime?: Timestamp;
   status: string;
   closedBy?: string;
+  faultRestorer?: string;
   location?: Location | null;
   locationUpdatedAt?: string;
   [key: string]: any;
@@ -100,7 +129,17 @@ const columnKeyToIncidentKey: { [K in keyof ColumnKey]: K extends never ? never 
   actions: 'id' as never
 };
 
-const ViewIncidentModal = ({ incident, onClose, onUpdate }: { incident: GPONIncident; onClose: () => void; onUpdate: () => Promise<void> }) => {
+const ViewIncidentModal = ({ 
+  incident, 
+  onClose, 
+  onUpdate,
+  onGenerateRestoreMessage 
+}: { 
+  incident: GPONIncident; 
+  onClose: () => void; 
+  onUpdate: () => Promise<void>;
+  onGenerateRestoreMessage?: (incident: GPONIncident) => void;
+}) => {
   const [editingRemarks, setEditingRemarks] = useState(false);
   const [remarksValue, setRemarksValue] = useState(incident.remarks || '');
   const [updatingRemarks, setUpdatingRemarks] = useState(false);
@@ -153,14 +192,41 @@ const ViewIncidentModal = ({ incident, onClose, onUpdate }: { incident: GPONInci
     }
   };
 
+  // Handle restore message button click with a default empty function if prop isn't provided
+  const handleRestoreMessageClick = () => {
+    if (onGenerateRestoreMessage) {
+      onGenerateRestoreMessage(currentIncident);
+    }
+  };
+
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <div className="modal-header">
-          <h2>Incident Details - {currentIncident.incidentNumber}</h2>
+    <div 
+      className="modal-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      tabIndex={0}
+    >
+      <div className="modal-content animate-dialog">
+        <div className="modal-header" style={{ backgroundColor: "#F0E6D2" }}>
+          <h2 style={{ width: "100%", textAlign: "center", fontSize: "1.5rem", fontWeight: "700" }}>Incident Details - {currentIncident.incidentNumber}</h2>
           <button className="close-btn" onClick={onClose}>×</button>
         </div>
-        <div className="modal-body">
+        <div className="modal-body" style={{ padding: "25px" }}>
+          {/* Add Generate Restore Message button below the title */}
+          {currentIncident.status === 'Completed' && onGenerateRestoreMessage && (
+            <div className="message-button-container">
+              <button
+                onClick={() => onGenerateRestoreMessage(currentIncident)}
+                className="restore-message-btn"
+              >
+                Generate Restore Message
+              </button>
+            </div>
+          )}
+          
           <div className="detail-row">
             <strong>Domain:</strong>
             <span>{currentIncident.domain || 'Switch/Access'}</span>
@@ -261,6 +327,12 @@ const ViewIncidentModal = ({ incident, onClose, onUpdate }: { incident: GPONInci
               <span>{currentIncident.closedBy}</span>
             </div>
           )}
+          {currentIncident.faultRestorer && (
+            <div className="detail-row">
+              <strong>Fault Restorer:</strong>
+              <span>{currentIncident.faultRestorer}</span>
+            </div>
+          )}
           <div className="detail-row location-section">
             <strong>Location:</strong>
             <div className="location-content">
@@ -300,6 +372,88 @@ const ViewIncidentModal = ({ incident, onClose, onUpdate }: { incident: GPONInci
       </div>
 
       <style jsx>{`
+        /* Improve modal styling to match regular reports */
+        .modal-content {
+          background-color: #FFFBEF;
+          border-radius: 8px;
+          box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+          width: 90%;
+          max-width: 800px;
+          max-height: 90vh;
+          overflow-y: auto;
+          position: relative;
+          animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        .modal-header {
+          padding: 20px 25px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-bottom: 1px solid #E4DAC2;
+        }
+
+        .modal-header h2 {
+          margin: 0;
+          color: #4A6741;
+        }
+
+        .close-btn {
+          background: none;
+          border: none;
+          font-size: 24px;
+          color: #4A6741;
+          cursor: pointer;
+          padding: 0;
+          line-height: 1;
+        }
+
+        .modal-body {
+          padding: 25px;
+        }
+
+        .detail-row {
+          display: flex;
+          margin-bottom: 15px;
+          border-bottom: 1px solid #f0f0f0;
+          padding-bottom: 15px;
+        }
+
+        .detail-row strong {
+          width: 160px;
+          color: #4A6741;
+          font-weight: 600;
+          flex-shrink: 0;
+        }
+
+        .detail-row span {
+          flex: 1;
+        }
+
+        .animate-dialog {
+          animation: slideIn 0.3s ease-out forwards;
+        }
+
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
         .remarks-section {
           margin-top: 20px;
           padding-top: 20px;
@@ -426,6 +580,41 @@ const ViewIncidentModal = ({ incident, onClose, onUpdate }: { incident: GPONInci
         .location-btn:hover {
           background-color: #0b7dda;
         }
+
+        .message-button-container {
+          display: flex;
+          justify-content: center;
+          margin-bottom: 20px;
+          padding-bottom: 15px;
+          border-bottom: 1px solid #E4DAC2;
+        }
+        
+        .restore-message-btn {
+          background-color: #4A6741;
+          color: white;
+          padding: 12px 20px;
+          border-radius: 4px;
+          border: none;
+          cursor: pointer;
+          font-size: 15px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          transition: all 0.2s ease;
+        }
+        
+        .restore-message-btn:hover {
+          background-color: #3A5331;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .restore-message-btn:active {
+          transform: translateY(0);
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
       `}</style>
     </div>
   );
@@ -483,8 +672,18 @@ export default function GPONReportsPage() {
   const [statusChangeId, setStatusChangeId] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showStatusChangeDialog, setShowStatusChangeDialog] = useState(false);
+  const [statusChangeIncident, setStatusChangeIncident] = useState<GPONIncident | null>(null);
+  const [selectedFaultRestorer, setSelectedFaultRestorer] = useState<string>('');
+
+  // Add these new state variables for restore message functionality
+  const [showRestoreMessageDialog, setShowRestoreMessageDialog] = useState(false);
+  const [restoreMessageIncident, setRestoreMessageIncident] = useState<GPONIncident | null>(null);
+  const [selectedThanksTo, setSelectedThanksTo] = useState<string[]>([]);
 
   const { columns, handleColumnResize, getColumnWidth } = useTableColumns('gpon');
+
+  const analyticsOverlayRef = useRef<HTMLDivElement>(null);
 
   // Add useEffect to fetch incidents on mount
   useEffect(() => {
@@ -716,9 +915,21 @@ export default function GPONReportsPage() {
       setUpdatingStatus(true);
       const docRef = doc(db, 'gponIncidents', incidentId);
 
-      // If status is "Completed" and no closer is selected, show closer selection
+      // If status is "Completed", show the ticket closer and fault restorer dialog
       if (newStatus === 'Completed') {
-        setStatusChangeId(incidentId);
+        // Get current incident data to pass to dialog
+        const incidentDoc = await getDoc(docRef);
+        if (incidentDoc.exists()) {
+          const incident = { id: incidentDoc.id, ...incidentDoc.data() } as GPONIncident;
+          
+          // Ensure we load all stakeholders from the database for this incident
+          setStatusChangeIncident(incident);
+          setStatusChangeId(incidentId);
+          setShowStatusChangeDialog(true);
+          
+          // Log stakeholders to verify they're being loaded
+          console.log("Loaded stakeholders for incident:", incident.stakeholders);
+        }
         setUpdatingStatus(false);
         return;
       }
@@ -741,7 +952,12 @@ export default function GPONReportsPage() {
 
   const handleCloserSelection = async () => {
     if (!selectedCloser) {
-      alert('Please select the person who resolved this incident');
+      alert('Please select the person who closed this ticket');
+      return;
+    }
+
+    if (!selectedFaultRestorer) {
+      alert('Please select the person who restored the fault');
       return;
     }
 
@@ -749,11 +965,27 @@ export default function GPONReportsPage() {
       setUpdatingStatus(true);
       const docRef = doc(db, 'gponIncidents', statusChangeId!);
       
+      // Get the current incident to check stakeholders
+      const incidentDoc = await getDoc(docRef);
+      if (!incidentDoc.exists()) {
+        throw new Error('Incident not found');
+      }
+      
+      const currentIncident = incidentDoc.data() as GPONIncident;
+      
+      // Check if the fault restorer is already in the stakeholders list
+      const updatedStakeholders = [...(currentIncident.stakeholders || [])];
+      if (!updatedStakeholders.includes(selectedFaultRestorer)) {
+        updatedStakeholders.push(selectedFaultRestorer);
+      }
+      
       const updateData = {
         status: 'Completed',
         lastUpdated: new Date(),
         faultEndTime: new Date(),
-        closedBy: selectedCloser
+        closedBy: selectedCloser,
+        faultRestorer: selectedFaultRestorer,
+        stakeholders: updatedStakeholders // Update stakeholders list
       };
 
       await updateDoc(docRef, updateData);
@@ -761,13 +993,24 @@ export default function GPONReportsPage() {
       
       // Reset states
       setSelectedCloser('');
+      setSelectedFaultRestorer('');
       setStatusChangeId(null);
+      setStatusChangeIncident(null);
+      setShowStatusChangeDialog(false);
       setUpdatingStatus(false);
     } catch (error) {
       console.error('Error completing incident:', error);
       alert('Error completing incident. Please try again.');
       setUpdatingStatus(false);
     }
+  };
+
+  const handleCancelStatusChange = () => {
+    setStatusChangeId(null);
+    setStatusChangeIncident(null);
+    setSelectedCloser('');
+    setSelectedFaultRestorer('');
+    setShowStatusChangeDialog(false);
   };
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -838,32 +1081,6 @@ export default function GPONReportsPage() {
         ],
       }]
     };
-  };
-
-  const exportToExcel = () => {
-      const data = getSortedIncidents().map(incident => ({
-      'Incident Number': incident.incidentNumber,
-      'Exchange Name': incident.exchangeName,
-      'Domain': incident.domain || '-',
-      'Equipment Type': incident.equipmentType || '-',
-      'Fault Type': incident.faultType || '-',
-        'FDH': incident.fdh,
-        'FATs': incident.fats.map(fat => fat.value).join(', '),
-      'OLT IP': incident.oltIp,
-        'F/S/P': incident.fsps.map(fsp => fsp.value).join(', '),
-        'Stakeholders': incident.stakeholders.join(', '),
-        'Ticket Generator': incident.ticketGenerator,
-      'Start Time': incident.timestamp.toDate().toLocaleString(),
-      'End Time': incident.faultEndTime ? incident.faultEndTime.toDate().toLocaleString() : '-',
-      'Status': incident.status,
-      'Closed By': incident.closedBy || '-',
-        'Remarks': incident.remarks || '-'
-      }));
-
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'GPON Incidents');
-    XLSX.writeFile(wb, 'gpon_incidents_report.xlsx');
   };
 
   const handleCustomRangeConfirm = () => {
@@ -959,6 +1176,60 @@ export default function GPONReportsPage() {
     }
   };
 
+  // Generate restore message for a completed incident
+  const generateRestoreMessage = (incident: GPONIncident) => {
+    if (!incident || incident.status !== 'Completed' || !incident.faultEndTime) {
+      return '';
+    }
+
+    const totalTime = calculateTotalTime(incident);
+    const fdhInfo = incident.fdh || '';
+    const fatsInfo = incident.fats.map(fat => fat.value).join(', ');
+    const exchange = incident.exchangeName || '';
+    
+    const message = `***GPON Fault in ${exchange}***
+FDH: ${fdhInfo}
+FAT(s): ${fatsInfo}
+has been restored
+
+Total Fault Time: ${totalTime}
+
+Thanks to ${selectedThanksTo.join(', ')}`;
+    
+    return message;
+  };
+
+  // Function to copy text to clipboard
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        alert('Message copied to clipboard');
+      })
+      .catch(err => {
+        console.error('Failed to copy: ', err);
+        alert('Failed to copy to clipboard. Please try again.');
+      });
+  };
+
+  // Handle showing the restore message dialog
+  const handleShowRestoreMessage = (incident: GPONIncident) => {
+    setRestoreMessageIncident(incident);
+    setSelectedThanksTo(incident.stakeholders || []);
+    setShowRestoreMessageDialog(true);
+  };
+
+  // Function to handle restore message generation
+  const handleGponRestoreMessage = (incident: GPONIncident) => {
+    handleShowRestoreMessage(incident);
+  };
+
+  // Add effect to focus the analytics overlay when it appears
+  useEffect(() => {
+    if (showAnalytics && analyticsOverlayRef.current) {
+      analyticsOverlayRef.current.focus();
+    }
+  }, [showAnalytics]);
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -1046,17 +1317,37 @@ export default function GPONReportsPage() {
           >
             <FaFilter /> Filters
           </button>
-          <button className="action-btn" onClick={exportToExcel}>
-            <FaDownload /> Export to Excel
-          </button>
+          <ExportButton 
+            data={getSortedIncidents().map(incident => ({
+              'Incident Number': incident.incidentNumber,
+              'Exchange Name': incident.exchangeName,
+              'Domain': incident.domain || '-',
+              'Equipment Type': incident.equipmentType || '-',
+              'Fault Type': incident.faultType || '-',
+              'FDH': incident.fdh,
+              'FATs': incident.fats.map(fat => fat.value).join(', '),
+              'OLT IP': incident.oltIp,
+              'F/S/P': incident.fsps.map(fsp => fsp.value).join(', '),
+              'Stakeholders': incident.stakeholders.join(', '),
+              'Ticket Generator': incident.ticketGenerator,
+              'Start Time': incident.timestamp.toDate().toLocaleString(),
+              'End Time': incident.faultEndTime ? incident.faultEndTime.toDate().toLocaleString() : '-',
+              'Status': incident.status,
+              'Closed By': incident.closedBy || '-',
+              'Remarks': incident.remarks || '-'
+            }))}
+            filename="gpon_incidents_report"
+            label="Export Data"
+            className="action-btn"
+          />
           <div style={{
             display: 'flex',
             alignItems: 'center',
             gap: '15px',
             marginTop: '10px',
             width: '100%'
-          }}>
-            <label htmlFor="theme-select" style={{ 
+          }} className="theme-select-container">
+            <label htmlFor="theme-select" className="theme-select-label" style={{ 
               fontWeight: 700, 
               color: '#000000',
               fontSize: '15px'
@@ -1264,6 +1555,7 @@ export default function GPONReportsPage() {
             incident={selectedIncident}
             onClose={() => setShowViewModal(false)}
             onUpdate={fetchIncidents}
+            onGenerateRestoreMessage={handleGponRestoreMessage}
           />
         )}
 
@@ -1288,7 +1580,7 @@ export default function GPONReportsPage() {
                   </select>
                   <button
                     className="btn btn-primary"
-                    onClick={handleCloserSelection}
+                    onClick={() => setShowCloserSelection(false)}
                     disabled={!selectedCloser}
                   >
                     Confirm
@@ -1300,7 +1592,16 @@ export default function GPONReportsPage() {
         )}
 
         {showAnalytics && (
-          <div className="analytics-overlay">
+          <div 
+            className="analytics-overlay"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setShowAnalytics(false);
+              }
+            }}
+            tabIndex={0}
+            ref={analyticsOverlayRef}
+          >
             <div className="analytics-content">
               <div className="analytics-header">
                 <h2>GPON Fault Analytics</h2>
@@ -1315,7 +1616,529 @@ export default function GPONReportsPage() {
             </div>
           </div>
         )}
+
+        {/* Status Change Dialog with improved UI */}
+        {showStatusChangeDialog && statusChangeIncident && (
+          <div 
+            className="modal-overlay" 
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                handleCancelStatusChange();
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                handleCancelStatusChange();
+              }
+            }}
+            tabIndex={0}
+          >
+            <div className="modal-content status-change-dialog animate-dialog">
+              <div className="modal-header">
+                <h2 style={{ width: "100%", textAlign: "center", fontSize: "1.5rem", fontWeight: "700" }}>Complete Incident</h2>
+                <button className="close-btn" onClick={handleCancelStatusChange}>×</button>
+              </div>
+              <div className="modal-body" style={{ padding: "25px" }}>
+                <div className="form-fields-row">
+                  <div className="form-group">
+                    <label htmlFor="ticket-closer" className="field-label">Ticket Closer:</label>
+                    <select
+                      id="ticket-closer"
+                      value={selectedCloser}
+                      onChange={(e) => setSelectedCloser(e.target.value)}
+                      className="form-select"
+                    >
+                      <option value="">Select Ticket Closer</option>
+                      {closerOptions.map((person) => (
+                        <option key={person} value={person}>{person}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="fault-restorer" className="field-label">Fault Restorer:</label>
+                    <select
+                      id="fault-restorer"
+                      value={selectedFaultRestorer}
+                      onChange={(e) => setSelectedFaultRestorer(e.target.value)}
+                      className="form-select restorer-select"
+                    >
+                      <option value="">Select Fault Restorer</option>
+                      {statusChangeIncident.stakeholders && Array.isArray(statusChangeIncident.stakeholders) && 
+                        statusChangeIncident.stakeholders.map((person) => (
+                          <option key={person} value={person}>{person}</option>
+                        ))
+                      }
+                      {morningTeamMembers.map((person) => (
+                        !statusChangeIncident.stakeholders?.includes(person) && (
+                          <option key={`morning-${person}`} value={person}>{person}</option>
+                        )
+                      ))}
+                    </select>
+                    {/* Show stakeholder count for debugging */}
+                    <div className="debug-info">
+                      Available stakeholders: {statusChangeIncident.stakeholders?.length || 0}
+                    </div>
+                  </div>
+                </div>
+                <div className="incident-summary">
+                  <h3>Incident Summary</h3>
+                  <div className="summary-row">
+                    <span className="summary-label">Incident #:</span>
+                    <span className="summary-value">{statusChangeIncident.incidentNumber}</span>
+                  </div>
+                  <div className="summary-row">
+                    <span className="summary-label">Exchange:</span>
+                    <span className="summary-value">{statusChangeIncident.exchangeName}</span>
+                  </div>
+                  <div className="summary-row">
+                    <span className="summary-label">FDH:</span>
+                    <span className="summary-value">{statusChangeIncident.fdh}</span>
+                  </div>
+                </div>
+                <div className="dialog-actions">
+                  <button
+                    className="btn btn-secondary"
+                    onClick={handleCancelStatusChange}
+                    style={{ 
+                      backgroundColor: "#6c757d",
+                      color: "white",
+                      padding: "10px 15px",
+                      borderRadius: "4px",
+                      border: "none",
+                      fontSize: "15px",
+                      cursor: "pointer"
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="btn btn-primary pulse-animation"
+                    onClick={handleCloserSelection}
+                    disabled={!selectedCloser || !selectedFaultRestorer || updatingStatus}
+                    style={{ 
+                      backgroundColor: "#4A6741",
+                      color: "white",
+                      padding: "10px 20px",
+                      borderRadius: "4px",
+                      border: "none",
+                      fontSize: "15px",
+                      cursor: "pointer",
+                      fontWeight: "600"
+                    }}
+                  >
+                    {updatingStatus ? 'Saving...' : 'Confirm'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Restore Message Dialog */}
+        {showRestoreMessageDialog && restoreMessageIncident && (
+          <div 
+            className="modal-overlay" 
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowRestoreMessageDialog(false);
+                setRestoreMessageIncident(null);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setShowRestoreMessageDialog(false);
+                setRestoreMessageIncident(null);
+              } else if (e.ctrlKey && e.key === 'c') {
+                copyToClipboard(generateRestoreMessage(restoreMessageIncident));
+              }
+            }}
+            tabIndex={0}
+          >
+            <div className="modal-content restore-message-dialog animate-dialog">
+              <div className="modal-header">
+                <h2 style={{ width: "100%", textAlign: "center", fontSize: "1.5rem", fontWeight: "700" }}>Restore Message</h2>
+                <button className="close-btn" onClick={() => setShowRestoreMessageDialog(false)}>×</button>
+              </div>
+              <div className="modal-body" style={{ padding: "25px" }}>
+                <div className="form-group stakeholder-section">
+                  <label className="section-label">Select people to thank:</label>
+                  <div className="stakeholders-selection">
+                    {restoreMessageIncident.stakeholders?.map((person) => (
+                      <div key={person} className="stakeholder-checkbox">
+                        <input
+                          type="checkbox"
+                          id={`thanks-${person}`}
+                          checked={selectedThanksTo.includes(person)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedThanksTo([...selectedThanksTo, person]);
+                            } else {
+                              setSelectedThanksTo(selectedThanksTo.filter(p => p !== person));
+                            }
+                          }}
+                        />
+                        <label htmlFor={`thanks-${person}`}>{person}</label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="message-preview">
+                  <label className="section-label">Message:</label>
+                  <pre className="message-text">{generateRestoreMessage(restoreMessageIncident)}</pre>
+                  <div className="help-text">
+                    Press <kbd>Ctrl</kbd>+<kbd>C</kbd> to copy or use the button below
+                  </div>
+                </div>
+                <div className="dialog-actions">
+                  <button
+                    className="btn btn-primary pulse-animation"
+                    onClick={() => copyToClipboard(generateRestoreMessage(restoreMessageIncident))}
+                    style={{ 
+                      backgroundColor: "#4A6741",
+                      color: "white",
+                      padding: "10px 20px",
+                      borderRadius: "4px",
+                      border: "none",
+                      fontSize: "15px",
+                      cursor: "pointer",
+                      fontWeight: "600"
+                    }}
+                  >
+                    Copy to Clipboard
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+      <style jsx global>{`
+        /* Status Change Dialog Styles */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: rgba(0, 0, 0, 0.5);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 1000;
+          animation: fadeBackground 0.3s ease-out forwards;
+        }
+        
+        @keyframes fadeBackground {
+          from {
+            background-color: rgba(0, 0, 0, 0);
+          }
+          to {
+            background-color: rgba(0, 0, 0, 0.5);
+          }
+        }
+        
+        .animate-dialog {
+          animation: slideIn 0.3s ease-out forwards;
+        }
+        
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .status-change-dialog {
+          background-color: #FFFBEF;
+          max-width: 600px;
+          width: 90%;
+          border-radius: 8px;
+          box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .modal-header {
+          padding: 20px 25px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-bottom: 1px solid #E4DAC2;
+          background-color: #F0E6D2;
+          border-radius: 8px 8px 0 0;
+        }
+        
+        .modal-header h2 {
+          margin: 0;
+          color: #4A6741;
+        }
+        
+        .close-btn {
+          background: none;
+          border: none;
+          font-size: 24px;
+          color: #4A6741;
+          cursor: pointer;
+          padding: 0;
+          line-height: 1;
+        }
+        
+        .modal-body {
+          padding: 25px;
+        }
+        
+        .form-fields-row {
+          display: flex;
+          gap: 20px;
+          margin-bottom: 30px;
+        }
+        
+        .form-fields-row .form-group {
+          flex: 1;
+          min-width: 0;
+          position: relative;
+        }
+        
+        .status-change-dialog .form-group {
+          margin-bottom: 25px;
+        }
+        
+        .status-change-dialog label {
+          display: block;
+          margin-bottom: 12px;
+          font-weight: 600;
+          color: #333;
+        }
+        
+        .field-label {
+          font-weight: 800 !important;
+          color: #1a5fb4 !important;
+          font-size: 1.05rem;
+          display: block;
+          margin-bottom: 12px;
+          padding-left: 2px;
+        }
+        
+        .debug-info {
+          font-size: 11px;
+          color: #666;
+          margin-top: 4px;
+          font-style: italic;
+        }
+        
+        .status-change-dialog .form-select {
+          width: 100%;
+          height: 50px;
+          padding: 12px 15px;
+          border-radius: 8px;
+          border: 1px solid #D4C9A8;
+          background-color: white;
+          font-size: 16px;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+          transition: all 0.2s ease;
+          margin-top: 5px;
+          appearance: menulist;
+          -webkit-appearance: menulist;
+          -moz-appearance: menulist;
+        }
+        
+        .restorer-select {
+          max-height: 50px;
+          overflow-y: auto;
+        }
+        
+        .status-change-dialog .form-select option {
+          padding: 10px;
+          font-size: 16px;
+          height: auto;
+        }
+        
+        .status-change-dialog .form-select:focus {
+          border-color: #4A6741;
+          box-shadow: 0 0 0 2px rgba(74, 103, 65, 0.2);
+          outline: none;
+        }
+        
+        .status-change-dialog .dialog-actions {
+          display: flex;
+          justify-content: center;
+          gap: 15px;
+          margin-top: 25px;
+        }
+        
+        .incident-summary {
+          background-color: rgba(255, 255, 255, 0.7);
+          border-radius: 8px;
+          padding: 20px;
+          margin-top: 10px;
+          border: 1px solid #D4C9A8;
+        }
+        
+        .incident-summary h3 {
+          margin-top: 0;
+          margin-bottom: 15px;
+          font-size: 18px;
+          color: #4A6741;
+          padding-bottom: 10px;
+          border-bottom: 1px solid #D4C9A8;
+          text-align: center;
+          font-weight: 700;
+        }
+        
+        .summary-row {
+          display: flex;
+          margin-bottom: 12px;
+        }
+        
+        .summary-label {
+          font-weight: 600;
+          width: 120px;
+          flex-shrink: 0;
+        }
+        
+        .summary-value {
+          color: #555;
+          font-weight: 500;
+        }
+        
+        .btn-primary.pulse-animation {
+          animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+          0% {
+            box-shadow: 0 0 0 0 rgba(74, 103, 65, 0.7);
+          }
+          70% {
+            box-shadow: 0 0 0 10px rgba(74, 103, 65, 0);
+          }
+          100% {
+            box-shadow: 0 0 0 0 rgba(74, 103, 65, 0);
+          }
+        }
+
+        /* Restore Message Dialog Styles */
+        .restore-message-dialog {
+          background-color: #FFFBEF;
+          max-width: 650px;
+          width: 90%;
+          border-radius: 8px;
+          box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .restore-message-dialog .modal-body {
+          padding: 25px;
+        }
+        
+        .restore-message-dialog .form-group {
+          margin-bottom: 20px;
+        }
+        
+        .section-label {
+          display: block;
+          margin-bottom: 12px;
+          font-weight: 700;
+          color: #3a5331;
+          font-size: 1.05rem;
+          border-bottom: 1px dashed #D4C9A8;
+          padding-bottom: 8px;
+        }
+        
+        .stakeholder-section {
+          margin-bottom: 25px;
+        }
+        
+        .stakeholders-selection {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-bottom: 20px;
+          background-color: white;
+          padding: 15px;
+          border-radius: 8px;
+          border: 1px solid #D4C9A8;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        .stakeholder-checkbox {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          margin-right: 15px;
+          padding: 8px 12px;
+          background-color: #eef2ff;
+          border-radius: 20px;
+          transition: all 0.2s ease;
+          border: 1px solid #c7d2fe;
+          font-weight: 600;
+        }
+        
+        .stakeholder-checkbox:hover {
+          background-color: #dbeafe;
+          transform: translateY(-2px);
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .stakeholder-checkbox label {
+          font-weight: 600;
+          color: #4338ca;
+        }
+        
+        .stakeholder-checkbox input[type="checkbox"] {
+          accent-color: #4A6741;
+          width: 16px;
+          height: 16px;
+        }
+        
+        .message-preview {
+          margin-top: 20px;
+          background-color: white;
+          padding: 20px;
+          border-radius: 8px;
+          border: 1px solid #D4C9A8;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        .message-text {
+          background-color: #f8f8f8;
+          padding: 25px;
+          border-radius: 8px;
+          border: 1px solid #eee;
+          white-space: pre-wrap;
+          margin: 15px 0;
+          font-family: monospace;
+          font-size: 16px;
+          line-height: 1.8;
+          color: #000;
+          font-weight: 600;
+          text-align: center;
+          box-shadow: inset 0 0 6px rgba(0,0,0,0.05);
+        }
+        
+        .help-text {
+          font-size: 12px;
+          color: #666;
+          margin-bottom: 15px;
+          text-align: center;
+          font-style: italic;
+        }
+        
+        kbd {
+          background-color: #f7f7f7;
+          border: 1px solid #ccc;
+          border-radius: 3px;
+          box-shadow: 0 1px 0 rgba(0,0,0,0.2);
+          color: #333;
+          display: inline-block;
+          font-size: 11px;
+          line-height: 1.4;
+          margin: 0 0.1em;
+          padding: 0.1em 0.6em;
+          white-space: nowrap;
+        }
+      `}</style>
     </>
   );
 
@@ -1415,17 +2238,7 @@ export default function GPONReportsPage() {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                const input = document.createElement('input');
-                input.type = 'datetime-local';
-                input.value = selectedTimestamp;
-                input.style.position = 'absolute';
-                input.style.left = '-9999px';
-                document.body.appendChild(input);
-                input.showPicker();
-                input.addEventListener('change', (e) => {
-                  setSelectedTimestamp((e.target as HTMLInputElement).value);
-                  document.body.removeChild(input);
-                });
+                handleTimestampUpdate(incident.id);
               }}
               style={{
                 position: 'absolute',
@@ -1552,17 +2365,7 @@ export default function GPONReportsPage() {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                const input = document.createElement('input');
-                input.type = 'datetime-local';
-                input.value = selectedDateTime;
-                input.style.position = 'absolute';
-                input.style.left = '-9999px';
-                document.body.appendChild(input);
-                input.showPicker();
-                input.addEventListener('change', (e) => {
-                  setSelectedDateTime((e.target as HTMLInputElement).value);
-                  document.body.removeChild(input);
-                });
+                handleFaultEndTimeUpdate(incident.id);
               }}
               style={{
                 position: 'absolute',
@@ -1658,68 +2461,6 @@ export default function GPONReportsPage() {
   }
 
   function renderStatusCell(incident: GPONIncident) {
-    if (statusChangeId === incident.id) {
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-          <select
-            value={selectedCloser}
-            onChange={(e) => setSelectedCloser(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px',
-              borderRadius: '4px',
-              border: '1px solid #D4C9A8',
-              backgroundColor: 'white'
-            }}
-          >
-            <option value="">Select Ticket Closer</option>
-            {closerOptions.map((person) => (
-              <option key={person} value={person}>{person}</option>
-            ))}
-          </select>
-          <div style={{ display: 'flex', gap: '4px', width: '100%', justifyContent: 'space-between' }}>
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                handleCloserSelection();
-              }}
-              disabled={!selectedCloser || updatingStatus}
-              style={{
-                backgroundColor: selectedCloser ? '#28a745' : '#6c757d',
-                color: 'white',
-                padding: '4px 8px',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: selectedCloser && !updatingStatus ? 'pointer' : 'not-allowed',
-                fontSize: '12px',
-                width: '48%'
-              }}
-            >
-              {updatingStatus ? 'Updating...' : 'Confirm'}
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setStatusChangeId(null);
-                setSelectedCloser('');
-              }}
-              style={{
-                backgroundColor: '#dc3545',
-                color: 'white',
-                padding: '4px 8px',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '12px',
-                width: '48%'
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      );
-    }
     return (
       <select
         value={incident.status}

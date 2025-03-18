@@ -1050,4 +1050,305 @@ th:hover .resize-handle {
 
 .delete-btn:hover {
   background-color: #b91c1c;
+}
+
+/* Dark mode styles for reports container */
+.dark .reports-container,
+.dark .gpon-reports-container {
+  background-color: #1a202c;
+  color: #f8f9fa;
+}
+
+/* Dark mode styles for table container */
+.dark .reports-container .table-container,
+.dark .gpon-reports-container .table-container {
+  background-color: #2d3748;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Dark mode styles for table headers and cells */
+.dark .reports-container th,
+.dark .gpon-reports-container th {
+  background-color: #1a202c;
+  color: #f8f9fa;
+  border: 1px solid #4a5568;
+}
+
+.dark .reports-container td,
+.dark .gpon-reports-container td {
+  color: #f8f9fa;
+  border: 1px solid #4a5568;
+}
+
+/* Dark mode styles for buttons */
+.dark .action-btn,
+.dark .btn-primary,
+.dark .view-btn,
+.dark .pagination-button {
+  background-color: #4d4fb8;
+  color: #f8f9fa;
+  border: none;
+}
+
+.dark .action-btn:hover,
+.dark .btn-primary:hover,
+.dark .view-btn:hover,
+.dark .pagination-button:hover:not(:disabled) {
+  background-color: #3a3c8a;
+}
+
+/* Dark mode styles for filters */
+.dark .filters {
+  background-color: #2d3748;
+  border: 1px solid #4a5568;
+}
+
+.dark .search-input,
+.dark .status-filter,
+.dark .entries-select {
+  background-color: #1a202c;
+  color: #f8f9fa;
+  border: 1px solid #4a5568;
+}
+
+/* Dark mode styles for status badges */
+.dark .status-badge {
+  background-color: #2d3748;
+  color: #f8f9fa;
+  border: 1px solid #4a5568;
+}
+
+.dark .status-badge.in-progress {
+  background-color: #3182ce;
+  color: #f8f9fa;
+}
+
+.dark .status-badge.completed {
+  background-color: #38a169;
+  color: #f8f9fa;
+}
+
+/* Add column borders to tables in both light and dark mode */
+.reports-container table,
+.gpon-reports-container table {
+  border-collapse: collapse;
+  border: 1px solid #AAB396;
+}
+
+.reports-container th,
+.reports-container td,
+.gpon-reports-container th,
+.gpon-reports-container td {
+  border: 1px solid #AAB396;
+}
+
+/* Dark mode border colors */
+.dark .reports-container table,
+.dark .gpon-reports-container table {
+  border: 1px solid #4a5568;
+}
+
+.dark .reports-container th,
+.dark .reports-container td,
+.dark .gpon-reports-container th,
+.dark .gpon-reports-container td {
+  border: 1px solid #4a5568;
+}
+
+/* Completely exempt header buttons from dark mode styling */
+.dark .header button,
+.dark .header .action-btn,
+.dark .header .ExportButton {
+  /* Force light mode styles */
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+/* Specifically target each button to ensure they keep their original styling */
+/* Back to Home button */
+.dark .header .back-btn,
+.dark .header .title-section button {
+  background-color: #4d4fb8 !important;
+  color: white !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.dark .header .back-btn:hover,
+.dark .header .title-section button:hover {
+  background-color: #3a3c8a !important;
+}
+
+/* Target all action buttons in the header to ensure they keep their original styling */
+.dark .header .action-btn {
+  /* Default action button style */
+  background-color: #007bff !important;
+  color: white !important;
+  border: none !important;
+}
+
+.dark .header .action-btn:hover {
+  background-color: #0056b3 !important;
+}
+
+/* Export Data button - using class selector */
+.dark .header .ExportButton button {
+  background-color: white !important;
+  color: #333 !important;
+  border: 2px solid #38a169 !important;
+}
+
+.dark .header .ExportButton button:hover {
+  background-color: rgba(56, 161, 105, 0.1) !important;
+}
+
+/* Fix for Table Theme label in dark mode */
+.dark label[for="theme-select"] {
+  color: #f8f9fa !important;
+  background-color: transparent !important;
+}
+
+/* Target the theme-select-container specifically */
+.dark .theme-select-container {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Add a more general selector to catch any potential parent elements */
+.dark .header > div > div,
+.dark .header > div {
+  background-color: transparent !important;
+}
+
+/* Fix for Table Theme select dropdown in dark mode */
+.dark #theme-select {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+  border: 2px solid #4a5568 !important;
+}
+
+/* Ensure buttons maintain their original styling in dark mode */
+/* View button - keep original styling */
+.dark .view-btn {
+  background-color: #6c757d !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 4px !important;
+  padding: 4px 8px !important;
+  box-shadow: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+.dark .view-btn:hover {
+  background-color: #5a6268 !important;
+}
+
+/* Edit button - keep original styling */
+.dark .edit-btn {
+  background-color: #007bff !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 4px !important;
+  padding: 4px 8px !important;
+  box-shadow: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+.dark .edit-btn:hover {
+  background-color: #0056b3 !important;
+}
+
+/* Confirm button - keep original styling */
+.dark button:contains("Confirm"),
+.dark .confirm-btn {
+  background-color: #28a745 !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 4px !important;
+  padding: 8px 16px !important;
+  box-shadow: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+.dark button:contains("Confirm"):hover,
+.dark .confirm-btn:hover {
+  background-color: #218838 !important;
+}
+
+/* Cancel button - keep original styling */
+.dark button:contains("Cancel"),
+.dark .cancel-btn {
+  background-color: #dc3545 !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 4px !important;
+  padding: 8px 16px !important;
+  box-shadow: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+.dark button:contains("Cancel"):hover,
+.dark .cancel-btn:hover {
+  background-color: #c82333 !important;
+}
+
+/* Fix for view card text in dark mode */
+.dark .card-text,
+.dark .view-card-text,
+.dark .incident-details-text {
+  color: #f8f9fa !important;
+  background-color: transparent !important;
+}
+
+/* Preserve inline styles for buttons in dark mode */
+.dark button[style] {
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+/* Specifically target buttons with inline background-color styles */
+.dark button[style*="background-color: #28a745"],
+.dark button[style*="background-color:#28a745"] {
+  background-color: #28a745 !important;
+  color: white !important;
+}
+
+.dark button[style*="background-color: #dc3545"],
+.dark button[style*="background-color:#dc3545"] {
+  background-color: #dc3545 !important;
+  color: white !important;
+}
+
+.dark button[style*="background-color: #007bff"],
+.dark button[style*="background-color:#007bff"] {
+  background-color: #007bff !important;
+  color: white !important;
+}
+
+.dark button[style*="background-color: #6c757d"],
+.dark button[style*="background-color:#6c757d"] {
+  background-color: #6c757d !important;
+  color: white !important;
+}
+
+/* Fix for view card text in dark mode */
+.dark .modal-content,
+.dark .modal-body,
+.dark .incident-details {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+}
+
+.dark .incident-details p,
+.dark .incident-details span,
+.dark .incident-details div,
+.dark .modal-body p,
+.dark .modal-body span,
+.dark .modal-body div {
+  color: #f8f9fa !important;
 } 

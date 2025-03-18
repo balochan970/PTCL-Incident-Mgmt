@@ -571,44 +571,46 @@ export default function GPONFaultsPage() {
 
         {incidentOutput && (
           <div className="incident-output-container">
-            <h2 className="text-xl font-bold mb-4 text-center">Incident Output</h2>
-            <pre className="incident-output">{incidentOutput}</pre>
-            <div className="whatsapp-section">
-              <button
-                className="btn btn-copy"
-                onClick={() => {
-                  navigator.clipboard.writeText(incidentOutput);
-                  alert('Copied to clipboard!');
-                }}
-              >
-                <span>📋</span> Copy to Clipboard
-              </button>
-              <div className="number-input-group">
-                <select
-                  className="form-select"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                >
-                  <option value="">Select Contact</option>
-                  {phoneContacts.map((contact) => (
-                    <option key={contact.number} value={contact.number}>
-                      {contact.name}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Enter phone number"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                />
+            <div className="card">
+              <h2 className="text-xl font-bold mb-4 text-center">Incident Output</h2>
+              <pre className="incident-output">{incidentOutput}</pre>
+              <div className="whatsapp-section">
                 <button
-                  className="btn btn-whatsapp"
-                  onClick={() => sendWhatsAppViaApi(phoneNumber)}
+                  className="btn btn-copy"
+                  onClick={() => {
+                    navigator.clipboard.writeText(incidentOutput);
+                    alert('Copied to clipboard!');
+                  }}
                 >
-                  <span>📱</span> Send to WhatsApp
+                  <span>📋</span> Copy to Clipboard
                 </button>
+                <div className="number-input-group">
+                  <select
+                    className="form-select"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                  >
+                    <option value="">Select Contact</option>
+                    {phoneContacts.map((contact) => (
+                      <option key={contact.number} value={contact.number}>
+                        {contact.name}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Enter phone number"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                  />
+                  <button
+                    className="btn btn-whatsapp"
+                    onClick={() => sendWhatsAppViaApi(phoneNumber)}
+                  >
+                    <span>📱</span> Send to WhatsApp
+                  </button>
+                </div>
               </div>
             </div>
           </div>

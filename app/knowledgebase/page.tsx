@@ -17,6 +17,7 @@ import { BulkActions } from './components/BulkActions';
 import { useToast } from "@/components/ui/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Contact } from './types';
+import { useTheme } from '../contexts/ThemeContext';
 
 // Interfaces for different data types
 interface FiberPath {
@@ -102,6 +103,11 @@ const Tab = ({ label, icon, active, onClick }: TabProps) => (
         : 'bg-amber-100 text-amber-900 hover:bg-amber-200'
     }`}
     onClick={onClick}
+    style={{
+      backgroundColor: active ? '#d97706' : '#fef3c7',
+      color: active ? 'white' : '#92400e'
+    }}
+    data-active={active}
   >
     <span className="text-xl">{icon}</span>
     <span className="font-medium">{label}</span>
@@ -155,6 +161,157 @@ export default function KnowledgeBasePage(): JSX.Element {
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
 
   const { toast } = useToast();
+  const { theme } = useTheme();
+
+  // Add a style tag to prevent dark mode from affecting the section buttons
+  useEffect(() => {
+    // Create a style element
+    const style = document.createElement('style');
+    
+    // Add CSS rules to prevent dark mode from affecting the section buttons
+    style.textContent = `
+      /* Preserve section buttons styling in dark mode */
+      .dark .database-section-tabs button {
+        color: inherit !important;
+      }
+      .dark .database-section-tabs button[data-active="true"] {
+        background-color: #d97706 !important;
+        color: white !important;
+      }
+      .dark .database-section-tabs button[data-active="false"] {
+        background-color: #fef3c7 !important;
+        color: #92400e !important;
+      }
+      .dark .database-section-tabs button[data-active="false"]:hover {
+        background-color: #fde68a !important;
+      }
+      
+      /* Force light mode styles in database container when in dark mode */
+      .dark .database-container .code-card,
+      .dark .database-container .credential-card,
+      .dark .database-container .list-item {
+        background-color: white !important;
+        color: #333 !important;
+        border: 1px solid #ddd !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+      }
+      
+      .dark .database-container h4,
+      .dark .database-container h3,
+      .dark .database-container .title {
+        color: #333 !important;
+      }
+      
+      .dark .database-container pre,
+      .dark .database-container code {
+        background-color: #f8f9fa !important;
+        color: #333 !important;
+      }
+      
+      .dark .database-container .equipment-name,
+      .dark .database-container .credential-type,
+      .dark .database-container .list-meta {
+        color: #666 !important;
+      }
+      
+      .dark .database-container .code-content,
+      .dark .database-container .password-field {
+        background-color: #f8f9fa !important;
+        border: 1px solid #eee !important;
+      }
+      
+      /* Ensure all buttons in database sections maintain their styling */
+      .dark .database-container button {
+        color: inherit !important;
+      }
+      
+      .dark .database-container button.btn-primary {
+        background-color: #0d6efd !important;
+        color: white !important;
+        border-color: #0d6efd !important;
+      }
+      
+      .dark .database-container button.btn-secondary {
+        background-color: #6c757d !important;
+        color: white !important;
+        border-color: #6c757d !important;
+      }
+      
+      .dark .database-container button.btn-danger {
+        background-color: #dc3545 !important;
+        color: white !important;
+        border-color: #dc3545 !important;
+      }
+      
+      /* Ensure all form elements maintain their styling */
+      .dark .database-container .form-container {
+        background-color: white !important;
+        color: #333 !important;
+      }
+      
+      .dark .database-container input,
+      .dark .database-container select,
+      .dark .database-container textarea {
+        background-color: white !important;
+        color: #333 !important;
+        border: 1px solid #ddd !important;
+      }
+      
+      .dark .database-container label {
+        color: #333 !important;
+      }
+      
+      /* Additional specific styles for database sections */
+      .dark .database-container .codes-list,
+      .dark .database-container .credentials-list,
+      .dark .database-container .custom-list-section {
+        color: #333 !important;
+      }
+      
+      .dark .database-container .info-row .label {
+        color: #555 !important;
+      }
+      
+      .dark .database-container .info-row .value {
+        color: #333 !important;
+      }
+      
+      .dark .database-container .copy-btn,
+      .dark .database-container .copy-password-btn {
+        background-color: #e9ecef !important;
+        color: #495057 !important;
+        border: 1px solid #ced4da !important;
+      }
+      
+      .dark .database-container .copy-btn:hover,
+      .dark .database-container .copy-password-btn:hover {
+        background-color: #dee2e6 !important;
+      }
+      
+      .dark .database-container .credential-header,
+      .dark .database-container .list-header {
+        border-bottom: 1px solid #eee !important;
+      }
+      
+      /* Ensure create button maintains its styling */
+      .dark .database-container .create-button {
+        background-color: #d97706 !important;
+        color: white !important;
+      }
+      
+      .dark .database-container .create-button:hover {
+        background-color: #b45309 !important;
+      }
+    `;
+    
+    // Append the style element to the document head
+    document.head.appendChild(style);
+    
+    // Clean up function to remove the style element when the component unmounts
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
 
   // Get the current section's data length
   const getCurrentDataLength = () => {
@@ -1065,11 +1222,11 @@ export default function KnowledgeBasePage(): JSX.Element {
   return (
     <>
       <NavBar />
-      <div className="container" style={{ paddingTop: '32px' }}>
+      <div className="container database-container bg-[#FFF8E8] min-h-screen" style={{ paddingTop: '32px' }}>
         <div className="page-container">
           <div className="card slide-in">
             <div className="flex justify-between items-center">
-              <h1 className="text-2xl font-bold text-gray-800">Knowledge Base</h1>
+              <h1 className="text-2xl font-bold text-gray-800">Database</h1>
               <Link href="/">
                 <button className="btn btn-primary">
                   <span className="icon">🏠</span>
@@ -1081,7 +1238,7 @@ export default function KnowledgeBasePage(): JSX.Element {
 
           <div className="card mt-4">
             {/* Navigation Tabs */}
-            <div className="flex gap-4 p-4 bg-amber-50 rounded-lg mb-6">
+            <div className="flex gap-4 p-4 rounded-lg mb-6 database-section-tabs" style={{ backgroundColor: '#fffbeb' }}>
               {sections.map(section => (
                 <Tab
                   key={section.id}

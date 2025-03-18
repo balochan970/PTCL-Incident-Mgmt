@@ -1,11 +1,10 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  darkMode: ["class"],
+  darkMode: 'class',
   content: [
-    './pages/**/*.{ts,tsx}',
-    './components/**/*.{ts,tsx}',
-    './app/**/*.{ts,tsx}',
-    './src/**/*.{ts,tsx}',
+    './pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     container: {
@@ -20,14 +19,21 @@ module.exports = {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
+        background: {
+          DEFAULT: '#ffffff',
+          dark: '#1a1a1a',
+        },
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "hsl(var(--primary))",
+          DEFAULT: '#0066cc',
+          dark: '#005bb8',
+          light: '#1a75d2',
           foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
-          DEFAULT: "hsl(var(--secondary))",
+          DEFAULT: '#718096',
+          dark: '#4a5568',
+          light: '#a0aec0',
           foreground: "hsl(var(--secondary-foreground))",
         },
         destructive: {
@@ -49,6 +55,14 @@ module.exports = {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        dark: {
+          primary: '#4a9eff',
+          secondary: '#718096',
+          background: '#1a1a1a',
+          surface: '#2d2d2d',
+          text: '#ffffff',
+          border: '#404040',
         },
       },
       borderRadius: {

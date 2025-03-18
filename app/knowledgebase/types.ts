@@ -34,4 +34,55 @@ export interface ExcelContact {
   ExchangeName?: string;
   SupervisorName?: string;
   BackupNumber?: string;
+}
+
+// New types for enhanced knowledge base
+
+export interface Documentation {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  tags: string[];
+  author: string;
+  createdAt: Date;
+  updatedAt: Date;
+  version: string;
+  attachments?: string[];
+}
+
+export interface TroubleshootingGuide {
+  id: string;
+  title: string;
+  problem: string;
+  symptoms: string[];
+  solutions: TroubleshootingSolution[];
+  equipmentType: string;
+  faultType: string;
+  author: string;
+  createdAt: Date;
+  updatedAt: Date;
+  rating?: number;
+  ratingCount?: number;
+}
+
+export interface TroubleshootingSolution {
+  id: string;
+  steps: string[];
+  expectedOutcome: string;
+  successRate?: number;
+  timeToResolve?: string;
+}
+
+export interface BestPractice {
+  id: string;
+  title: string;
+  category: string;
+  content: string;
+  examples: string[];
+  author: string;
+  createdAt: Date;
+  updatedAt: Date;
+  rating?: number;
+  ratingCount?: number;
 } 

@@ -134,12 +134,26 @@ body {
     radial-gradient(circle at bottom right, rgba(236, 72, 153, 0.1) 0%, transparent 50%);
 }
 
+/* Dark mode for body */
+.dark body {
+  background-color: var(--background-dark);
+  color: #f8f9fa;
+  background-image: 
+    radial-gradient(circle at top left, rgba(79, 70, 229, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at bottom right, rgba(236, 72, 153, 0.05) 0%, transparent 50%);
+}
+
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
   color: var(--text-primary);
   font-weight: 600;
   line-height: 1.2;
   margin-bottom: var(--spacing-md);
+}
+
+/* Dark mode for typography */
+.dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+  color: #f8f9fa;
 }
 
 h1 { font-size: 2.5rem; }
@@ -156,12 +170,19 @@ h6 { font-size: 1rem; }
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 20px;
-  transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
+}
+
+/* Dark mode for card */
+.dark .card {
+  background-color: #1a202c;
+  border-color: #4a5568;
+  color: #f8f9fa;
 }
 
 /* Button Styles */
@@ -211,6 +232,10 @@ h6 { font-size: 1rem; }
   font-weight: 500;
 }
 
+.dark .form-label {
+  color: #f8f9fa;
+}
+
 .form-input,
 .form-select {
   width: 100%;
@@ -221,6 +246,13 @@ h6 { font-size: 1rem; }
   color: #333;
 }
 
+.dark .form-input,
+.dark .form-select {
+  background-color: #2d3748;
+  border-color: #4a5568;
+  color: #f8f9fa;
+}
+
 .form-input:focus,
 .form-select:focus {
   outline: none;
@@ -228,17 +260,33 @@ h6 { font-size: 1rem; }
   box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
 }
 
+.dark .form-input:focus,
+.dark .form-select:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+}
+
 .form-input::placeholder {
   color: var(--text-muted);
 }
 
+.dark .form-input::placeholder {
+  color: #a0aec0;
+}
+
 /* Table Styles */
 .table-container {
-  background-color: #F7EED3;
-  border-radius: 8px;
-  border: 2px solid #AAB396;
-  overflow: hidden;
   margin: 20px 0;
+  border: 2px solid #AAB396;
+  border-radius: 8px;
+  overflow-x: auto;
+  background-color: #FFF8E8;
+}
+
+.dark .table-container {
+  background-color: #2d3748;
+  border-color: #4a5568;
+  color: #f8f9fa;
 }
 
 table {
@@ -254,14 +302,33 @@ th, td {
   color: #333;
 }
 
+.dark th, .dark td {
+  border-color: #4a5568;
+  color: #f8f9fa;
+}
+
+/* Table Header */
 th {
   background-color: #E8E4D5;
+  color: #333;
   font-weight: 600;
-  cursor: pointer;
+  text-align: left;
+  padding: 12px;
+  border-bottom: 2px solid #AAB396;
+}
+
+.dark th {
+  background-color: #1a202c;
+  color: #f8f9fa;
+  border-color: #4a5568;
 }
 
 tr:hover {
   background-color: #F7EED3;
+}
+
+.dark tr:hover {
+  background-color: #2d3748;
 }
 
 /* Loading States */
@@ -284,11 +351,21 @@ tr:hover {
   max-width: 1200px;
   margin: 0 auto;
   padding: var(--spacing-lg);
+  background-color: transparent;
+}
+
+.dark .container {
+  color: #f8f9fa;
 }
 
 .grid {
   display: grid;
   gap: 20px;
+  width: 100%;
+}
+
+.dark .grid {
+  color: #f8f9fa;
 }
 
 .grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
@@ -364,6 +441,13 @@ tr:hover {
   animation: slideIn var(--transition-normal);
 }
 
+/* Fix for the main content area in Single Fault page */
+.dark .fade-in,
+.dark .slide-in {
+  background-color: transparent;
+  color: #f8f9fa;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
@@ -389,6 +473,12 @@ tr:hover {
   min-height: 100vh;
   max-width: 1200px;
   margin: 0 auto;
+}
+
+/* Dark mode for page container */
+.dark .page-container {
+  background-color: #1a1a1a;
+  color: #f8f9fa;
 }
 
 /* Header Styles */
@@ -545,6 +635,13 @@ tr:hover {
 body {
   background-color:rgb(255, 248, 232);
 }
+
+/* Dark mode for body */
+.dark body {
+  background-color: #1a1a1a;
+  color: #f8f9fa;
+}
+
 th {
   cursor: pointer; /* Make cursor look like it's clickable */
   text-decoration: underline; /* Underline text to indicate interactivity */
@@ -554,7 +651,23 @@ th {
 th:hover {
   background-color: #f0f0f0; /* Change background color on hover */
 }
+
 /* Styling for the form container */
+.form-container {
+  background-color: #FFF8E8;
+  border: 2px solid #AAB396;
+  border-radius: 8px;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+/* Dark mode for form container */
+.dark .form-container {
+  background-color: #1a202c;
+  border-color: #4a5568;
+  color: #f8f9fa;
+}
+
 form {
   display: flex;
   flex-direction: column;
@@ -569,6 +682,13 @@ form {
   border-radius: 8px;
 }
 
+/* Dark mode for form */
+.dark form {
+  background-color: #1a202c;
+  border-color: #4a5568;
+  color: #f8f9fa;
+}
+
 /* Incident Reporting Heading */
 h1 {
   color: #000000;
@@ -579,23 +699,42 @@ h1 {
   text-align: center;
 }
 
+/* Dark mode for h1 */
+.dark h1 {
+  color: #f8f9fa;
+  border-color: #f8f9fa;
+}
+
 /* Input field and label styles */
 label {
-  color: #AAB396;
+  color: #333;
   display: block;
   margin-bottom: 5px;
   font-weight: bold;
 }
 
+/* Dark mode for label */
+.dark label {
+  color: #f8f9fa;
+}
+
 input[type="text"], select {
   background-color: #FFF8E8;
-  color: black;
+  color: #333;
   border: 2px solid #AAB396;
   border-radius: 5px;
   padding: 8px;
   margin-bottom: 20px;
   width: 100%;
   max-width: 500px;
+}
+
+/* Dark mode for input and select */
+.dark input[type="text"], 
+.dark select {
+  background-color: #2d3748;
+  color: #f8f9fa;
+  border-color: #4a5568;
 }
 
 /* Node fields should be in a row */
@@ -608,6 +747,17 @@ input[type="text"], select {
 .node-row input {
   margin-right: 10px;
   flex: 1;
+  background-color: #FFF8E8;
+  color: #333;
+  border: 2px solid #AAB396;
+  border-radius: 5px;
+  padding: 8px;
+}
+
+.dark .node-row input {
+  background-color: #2d3748;
+  border-color: #4a5568;
+  color: #f8f9fa;
 }
 
 /* Stakeholders and "Add More" */
@@ -667,6 +817,16 @@ button[type="submit"]:hover {
   width: 100%;
 }
 
+/* Dark mode for incident output container */
+.dark .incident-output-container {
+  background-color: #1a202c !important;
+  border: 2px solid #63b3ed !important;
+  box-shadow: 0 0 8px rgba(99, 179, 237, 0.3) !important;
+  color: #f8f9fa !important;
+  padding: 20px !important;
+  border-radius: 8px !important;
+}
+
 .incident-output {
   background-color: rgba(50, 35, 43, .4);
   color: #000000;
@@ -681,6 +841,36 @@ button[type="submit"]:hover {
   margin: 0 auto;
 }
 
+/* Dark mode for incident output */
+.dark .incident-output {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+  border: 1px solid #63b3ed !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+  border-radius: 6px !important;
+  padding: 20px !important;
+}
+
+/* Override any inline styles in the incident output */
+.dark [style*="background-color: rgba(50, 35, 43, .4)"],
+.dark [style*="background-color:rgba(50, 35, 43, .4)"] {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+}
+
+/* Fix for any monospace text in the incident output */
+.dark [style*="font-family: monospace"],
+.dark [style*="font-family:monospace"] {
+  color: #f8f9fa !important;
+}
+
+/* Fix for any pre-formatted text */
+.dark pre {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+  border-color: #4a5568 !important;
+}
+
 .incident-output h3 {
   margin: 0 0 15px 0;
   color: #333;
@@ -688,22 +878,10 @@ button[type="submit"]:hover {
   font-weight: 600;
 }
 
-.incident-output pre {
-  background-color: #FFF8E8;
-  border: 2px solid #AAB396;
-  border-radius: 6px;
-  padding: 15px;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  font-family: monospace;
-  font-size: 0.9rem;
-  line-height: 1.5;
-  color: #333;
-  max-height: 400px;
-  overflow-y: auto;
+.dark .incident-output h3 {
+  color: #f8f9fa;
 }
 
-/* Preformatted Text Styling */
 .incident-output pre {
   white-space: pre-wrap;
   word-wrap: break-word;
@@ -722,10 +900,23 @@ button[type="submit"]:hover {
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
+/* Dark mode for preformatted text */
+.dark .incident-output pre {
+  background-color: #1a202c;
+  border-color: #4a5568;
+  color: #f8f9fa;
+}
+
 /* Multiple Faults Specific Styling */
 .multiple-faults-output pre {
   background-color: #F7EED3;
   font-size: 18px; /* Increased font size */
+}
+
+/* Dark mode for multiple faults output */
+.dark .multiple-faults-output pre {
+  background-color: #1a202c;
+  color: #f8f9fa;
 }
 
 /* Incident Output Actions */
@@ -765,6 +956,15 @@ button[type="submit"]:hover {
   background-color: #FFF8E8;
   flex: 1;
   min-width: 150px;
+  color: #333;
+}
+
+/* Dark mode for number input group */
+.dark .number-input-group select,
+.dark .number-input-group input {
+  background-color: #2d3748;
+  border-color: #4a5568;
+  color: #f8f9fa;
 }
 
 /* Action Buttons */
@@ -826,45 +1026,6 @@ th[data-column="domain"] {
   line-height: 1.4;
 }
 
-/* Table Container */
-.table-container {
-  margin: 20px 0;
-  border: 2px solid #AAB396;
-  border-radius: 8px;
-  overflow-x: auto;
-  background-color: #FFF8E8;
-}
-
-/* Table Styling */
-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-}
-
-/* Table Header */
-th {
-  background-color: #E8E4D5;
-  color: #333;
-  font-weight: 600;
-  text-align: left;
-  padding: 12px;
-  border-bottom: 2px solid #AAB396;
-}
-
-/* Ensure all cells have proper padding and alignment */
-td, th {
-  padding: 12px;
-  text-align: left;
-  vertical-align: top;
-}
-
-/* Add proper spacing between cells */
-td:not(:last-child),
-th:not(:last-child) {
-  border-right: 1px solid #AAB396;
-}
-
 /* Template Slider Styles */
 .templates-overlay {
   position: fixed;
@@ -879,6 +1040,14 @@ th:not(:last-child) {
   border-right: 2px solid #AAB396;
 }
 
+/* Dark mode for templates overlay */
+.dark .templates-overlay {
+  background-color: #2d3748;
+  border-color: #4a5568;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.3);
+  color: #f8f9fa;
+}
+
 .create-template-form {
   background-color: #F7EED3;
   padding: 20px;
@@ -887,12 +1056,26 @@ th:not(:last-child) {
   border: 1px solid #AAB396;
 }
 
+/* Dark mode for create template form */
+.dark .create-template-form {
+  background-color: #1a202c;
+  border-color: #4a5568;
+  color: #f8f9fa;
+}
+
 .template-item {
   background-color: #FFF8E8;
   border: 1px solid #AAB396;
   border-radius: 8px;
   padding: 15px;
   margin-bottom: 10px;
+}
+
+/* Dark mode for template item */
+.dark .template-item {
+  background-color: #1a202c;
+  border-color: #4a5568;
+  color: #f8f9fa;
 }
 
 /* Template Form Controls */
@@ -907,6 +1090,10 @@ th:not(:last-child) {
   font-weight: 800;
 }
 
+.dark .template-form-group label {
+  color: #f8f9fa;
+}
+
 .template-form-group input,
 .template-form-group select {
   width: 100%;
@@ -914,13 +1101,14 @@ th:not(:last-child) {
   border: 1px solid #AAB396;
   border-radius: 4px;
   background-color: #FFF8E8;
+  color: #333;
 }
 
-.template-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 15px;
+.dark .template-form-group input,
+.dark .template-form-group select {
+  background-color: #2d3748;
+  border-color: #4a5568;
+  color: #f8f9fa;
 }
 
 /* Form Select and Input Styling for WhatsApp Section */
@@ -930,9 +1118,17 @@ th:not(:last-child) {
   border: 2px solid #AAB396;
   border-radius: 4px;
   padding: 8px 12px;
-  color: #000000;
+  color: #333;
   font-size: 14px;
   height: 40px;
+}
+
+/* Dark mode for form select and input */
+.dark .form-select,
+.dark .form-input {
+  background-color: #2d3748;
+  border-color: #4a5568;
+  color: #f8f9fa;
 }
 
 /* Button Styling */
@@ -1094,4 +1290,453 @@ th:not(:last-child) {
     border-left: none;
     border-right: none;
   }
+}
+
+/* Template actions */
+.template-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+/* Fix for any remaining light backgrounds in dark mode */
+.dark .form-container,
+.dark .header-card,
+.dark .content-card,
+.dark .grid-container > div {
+  background-color: #2d3748;
+  border-color: #4a5568;
+  color: #f8f9fa;
+}
+
+/* Fix for any remaining light backgrounds in form elements in dark mode */
+.dark input,
+.dark select,
+.dark textarea,
+.dark .dropdown-content {
+  background-color: #2d3748;
+  border-color: #4a5568;
+  color: #f8f9fa;
+}
+
+/* Fix for any remaining light text on dark backgrounds */
+.dark .btn-primary,
+.dark .btn-secondary,
+.dark .btn-success,
+.dark .btn-danger {
+  color: #f8f9fa;
+}
+
+/* Header card specific styles */
+.header.card {
+  background-color: #FFF8E8;
+  border: 2px solid #AAB396;
+}
+
+.dark .header.card {
+  background-color: #1a202c;
+  border-color: #4a5568;
+  color: #f8f9fa;
+}
+
+.title-section h1 {
+  color: #333;
+  border-color: #333;
+}
+
+.dark .title-section h1 {
+  color: #f8f9fa;
+  border-color: #4a5568;
+}
+
+/* Fix for dropdown selects in dark mode */
+.dark select,
+.dark select.form-select,
+.dark .form-select,
+.dark input[type="text"],
+.dark input[type="number"],
+.dark input[type="email"],
+.dark input[type="password"],
+.dark textarea {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+  border-color: #4a5568 !important;
+}
+
+.dark select option {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+}
+
+/* Fix for specific dropdowns in Single Fault page */
+.dark [id*="domain"],
+.dark [id*="equipment"],
+.dark [id*="exchange"],
+.dark [id*="fault"],
+.dark [id*="stakeholder"],
+.dark [id*="ticket"] {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+  border-color: #4a5568 !important;
+}
+
+/* Fix for any select elements with inline styles */
+.dark select[style*="background"],
+.dark select[style*="color"] {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+  border-color: #4a5568 !important;
+}
+
+/* Fix for MultiSelectDropdown component */
+.dark .dropdown-content,
+.dark .dropdown-container,
+.dark .dropdown-selected {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+  border-color: #4a5568 !important;
+}
+
+/* Fix for any remaining form elements */
+.dark input,
+.dark select,
+.dark textarea,
+.dark .dropdown-content,
+.dark button[role="combobox"],
+.dark div[role="combobox"],
+.dark div[role="listbox"] {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+  border-color: #4a5568 !important;
+}
+
+/* Fix for checkbox in dark mode */
+.dark input[type="checkbox"] {
+  accent-color: #4a5568;
+}
+
+.dark input[type="checkbox"] + label {
+  color: #f8f9fa;
+}
+
+/* Fix for any remaining light backgrounds in dark mode */
+.dark .container,
+.dark .form-container,
+.dark .header.card,
+.dark .content-card,
+.dark .grid-container > div {
+  background-color: #1a202c;
+  border-color: #4a5568;
+  color: #f8f9fa;
+}
+
+/* Fix for the node inputs in Single Fault page */
+.dark .node-row {
+  background-color: transparent;
+}
+
+/* Fix for the specific yellow backgrounds in Single Fault page */
+.dark [style*="background-color"] {
+  background-color: #1a202c !important;
+  color: #f8f9fa !important;
+}
+
+/* Fix for any inline styles that might be overriding our dark mode */
+.dark [style*="color"]:not(select):not(option) {
+  color: #f8f9fa !important;
+}
+
+/* Fix for any remaining elements with light backgrounds */
+.dark div[class*="card"],
+.dark div[class*="container"],
+.dark div[class*="form"],
+.dark div[class*="header"],
+.dark div[class*="content"] {
+  background-color: #1a202c !important;
+  border-color: #4a5568 !important;
+  color: #f8f9fa !important;
+}
+
+/* Comprehensive fix for incident output in dark mode */
+.dark .incident-output-container,
+.dark div[class*="incident-output-container"],
+.dark [style*="incident-output-container"] {
+  background-color: #1a202c !important;
+  border-color: #4a5568 !important;
+  color: #f8f9fa !important;
+}
+
+.dark .incident-output,
+.dark div[class*="incident-output"],
+.dark [style*="incident-output"] {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+  border-color: #4a5568 !important;
+}
+
+/* Target the specific inline styles used in the component */
+.dark [style*="background-color: rgba(50, 35, 43"],
+.dark [style*="background-color:rgba(50, 35, 43"],
+.dark [style*="color: #000000"],
+.dark [style*="color:#000000"] {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+}
+
+/* Fix for any text elements inside the incident output */
+.dark .incident-output *,
+.dark div[class*="incident-output"] * {
+  color: #f8f9fa !important;
+}
+
+/* GPON Faults specific styles */
+.dark .bg-\[\#fdf6e7\] {
+  background-color: #2d3748 !important;
+  border-color: #4a5568 !important;
+  color: #f8f9fa !important;
+}
+
+.dark .text-gray-700,
+.dark .text-lg,
+.dark .text-xl,
+.dark .text-sm {
+  color: #f8f9fa !important;
+}
+
+.dark .border-\[\#e6d5b0\] {
+  border-color: #4a5568 !important;
+}
+
+/* Fix for the incident output in GPON Faults page */
+.dark pre.incident-output {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+  border-color: #4a5568 !important;
+}
+
+/* Fix for monospace text in GPON Faults page */
+.dark pre,
+.dark code,
+.dark .monospace,
+.dark [style*="font-family: monospace"] {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+  border-color: #4a5568 !important;
+}
+
+/* Fix for any inline styles in GPON Faults page */
+.dark [style*="color: red"],
+.dark [style*="color:red"] {
+  color: #f56565 !important;
+}
+
+/* Fix for any remaining text elements in GPON Faults page */
+.dark .incident-output-container * {
+  color: #f8f9fa !important;
+}
+
+/* Fix for the specific GPON Faults page elements */
+.dark .incident-output-container h2 {
+  color: #f8f9fa !important;
+}
+
+/* Fix for any remaining elements with light backgrounds in GPON Faults page */
+.dark .p-4,
+.dark .rounded-lg,
+.dark .border {
+  background-color: #2d3748 !important;
+  border-color: #4a5568 !important;
+  color: #f8f9fa !important;
+}
+
+/* GPON Faults specific dark mode styles */
+.dark .gpon-faults-container .incident-output-container,
+.dark [data-page="gpon-faults"] .incident-output-container {
+  background-color: #1a202c !important;
+  border: 2px solid #63b3ed !important;
+  box-shadow: 0 0 8px rgba(99, 179, 237, 0.3) !important;
+  color: #f8f9fa !important;
+  padding: 20px !important;
+  border-radius: 8px !important;
+}
+
+.dark .gpon-faults-container .incident-output,
+.dark .gpon-faults-container pre,
+.dark [data-page="gpon-faults"] .incident-output,
+.dark [data-page="gpon-faults"] pre {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+  border: 1px solid #63b3ed !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+  border-radius: 6px !important;
+  padding: 20px !important;
+}
+
+/* Target any specific elements in the GPON Faults page */
+.dark [data-page="gpon-faults"] .p-4,
+.dark [data-page="gpon-faults"] .rounded-lg,
+.dark [data-page="gpon-faults"] .border,
+.dark .gpon-faults-container .p-4,
+.dark .gpon-faults-container .rounded-lg,
+.dark .gpon-faults-container .border {
+  background-color: #1a202c !important;
+  border-color: #63b3ed !important;
+  color: #f8f9fa !important;
+}
+
+/* Ensure all text in the GPON Faults incident output is properly styled */
+.dark [data-page="gpon-faults"] .incident-output-container *,
+.dark .gpon-faults-container .incident-output-container * {
+  color: #f8f9fa !important;
+}
+
+/* Target the specific GPON Faults output area */
+.dark [id="incident-output"],
+.dark [id="gpon-incident-output"],
+.dark [class*="gpon"] .incident-output-container,
+.dark [class*="gpon"] .incident-output {
+  background-color: #1a202c !important;
+  border: 2px solid #63b3ed !important;
+  box-shadow: 0 0 8px rgba(99, 179, 237, 0.3) !important;
+  color: #f8f9fa !important;
+  padding: 20px !important;
+  border-radius: 8px !important;
+}
+
+/* Target the pre element inside the GPON Faults output area */
+.dark [id="incident-output"] pre,
+.dark [id="gpon-incident-output"] pre,
+.dark [class*="gpon"] .incident-output pre,
+.dark [class*="gpon"] pre {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+  border: 1px solid #63b3ed !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+  border-radius: 6px !important;
+  padding: 20px !important;
+}
+
+/* Target the specific text content area inside GPON Faults output */
+.dark [id="incident-output"] .incident-output,
+.dark [id="gpon-incident-output"] .incident-output,
+.dark [class*="gpon"] .incident-output,
+.dark [class*="gpon"] pre.incident-output,
+.dark [class*="gpon"] .incident-output pre {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+  border: 1px solid #63b3ed !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+  border-radius: 6px !important;
+  padding: 20px !important;
+  font-family: monospace !important;
+  white-space: pre-wrap !important;
+  word-wrap: break-word !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+}
+
+/* Target any pre elements or monospace text in the GPON Faults page */
+.dark [class*="gpon"] pre,
+.dark [class*="gpon"] code,
+.dark [class*="gpon"] [style*="font-family: monospace"] {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+  border: 1px solid #63b3ed !important;
+  border-radius: 6px !important;
+  padding: 20px !important;
+}
+
+/* Target the specific text content directly */
+.dark [class*="gpon"] .incident-output-container > pre,
+.dark [class*="gpon"] .incident-output-container > div > pre,
+.dark [class*="gpon"] .incident-output-container > div {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+  border: 1px solid #63b3ed !important;
+  border-radius: 6px !important;
+  padding: 20px !important;
+  font-family: monospace !important;
+  white-space: pre-wrap !important;
+  word-wrap: break-word !important;
+}
+
+/* Force override any inline styles that might be applied */
+.dark [class*="gpon"] [style*="background-color"]:not(.theme-select-label):not(.theme-select-label *):not(button),
+.dark [class*="gpon"] [style*="color"]:not(.theme-select-label):not(.theme-select-label *):not(button) {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+}
+
+/* Direct targeting of the GPON Faults output text area */
+.dark .incident-output-container pre,
+.dark .incident-output-container [style*="font-family: monospace"],
+.dark .incident-output-container [style*="background-color: rgba(50, 35, 43"],
+.dark .incident-output-container [style*="color: #000000"] {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+  border: 1px solid #63b3ed !important;
+  border-radius: 6px !important;
+  padding: 20px !important;
+  font-family: monospace !important;
+}
+
+/* Target any element with inline styles in the incident output container */
+.dark .incident-output-container [style] {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+}
+
+/* Target the specific text area in the GPON Faults page */
+.dark [id="incident-output-text"],
+.dark [id="gpon-incident-output-text"],
+.dark [class*="incident-text"],
+.dark [class*="output-text"] {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+  border: 1px solid #63b3ed !important;
+  border-radius: 6px !important;
+  padding: 20px !important;
+}
+
+/* GPON Faults specific styles - Light mode */
+.incident-output-container pre.incident-output {
+  background-color: rgba(50, 35, 43, .4);
+  color: #000000;
+  border-radius: 4px;
+  padding: 20px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  width: 100%;
+  margin: 0 auto;
+  border: 1px solid #AAB396;
+}
+
+/* GPON Faults specific styles - Dark mode */
+.dark .incident-output-container pre.incident-output {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+  border: 1px solid #63b3ed !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+  border-radius: 6px !important;
+  padding: 20px !important;
+  font-family: monospace !important;
+  white-space: pre-wrap !important;
+  word-wrap: break-word !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+}
+
+/* Reset any conflicting styles that might be affecting the GPON Faults page */
+.dark .incident-output-container pre,
+.dark pre.incident-output {
+  background-color: #2d3748 !important;
+  color: #f8f9fa !important;
+  border: 1px solid #63b3ed !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+  border-radius: 6px !important;
+  padding: 20px !important;
 }

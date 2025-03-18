@@ -9,6 +9,7 @@ import { Location, DEFAULT_CENTER } from '@/lib/utils/location';
 import { exchanges } from '@/lib/utils/exchanges';
 import '../styles/globals.css';
 import { Incident } from '../types/incident';
+import { useTheme } from '../contexts/ThemeContext';
 
 // Dynamically import the Map component to avoid SSR issues with Leaflet
 const Map = dynamic(() => import('../components/Map'), {
@@ -26,6 +27,7 @@ export default function FaultLocationsPage() {
   const [endDate, setEndDate] = useState('');
   const [filterExchange, setFilterExchange] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (incidentType) {
@@ -132,16 +134,16 @@ export default function FaultLocationsPage() {
   return (
     <>
       <NavBar />
-      <div className="min-h-screen bg-[#0f172a] py-8">
+      <div className={`min-h-screen ${theme === 'dark' ? 'bg-gray-900' : 'bg-[#FFF8E8]'} py-8`}>
         <div className="container mx-auto px-4 mt-12">
-          <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-xl p-6">
+          <div className={`${theme === 'dark' ? 'bg-gray-800/95' : 'bg-white/95'} backdrop-blur-sm rounded-lg shadow-xl p-6`}>
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                   Fault Locations
                 </h1>
-                <p className="text-gray-600 mt-1">View and plot incident locations on the map</p>
+                <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mt-1`}>View and plot incident locations on the map</p>
               </div>
               <Link href="/">
                 <button className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg">
@@ -158,7 +160,7 @@ export default function FaultLocationsPage() {
                 className={`px-6 py-2.5 rounded-lg font-semibold transition-all shadow-md hover:shadow-lg ${
                   incidentType === 'gpon'
                     ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                    : `${theme === 'dark' ? 'bg-gray-800 text-white hover:bg-gray-700 border-gray-700' : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200'} border`
                 }`}
               >
                 GPON Faults
@@ -168,7 +170,7 @@ export default function FaultLocationsPage() {
                 className={`px-6 py-2.5 rounded-lg font-semibold transition-all shadow-md hover:shadow-lg ${
                   incidentType === 'switch'
                     ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                    : `${theme === 'dark' ? 'bg-gray-800 text-white hover:bg-gray-700 border-gray-700' : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200'} border`
                 }`}
               >
                 Switch/Metro Faults
@@ -187,7 +189,11 @@ export default function FaultLocationsPage() {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search incidents by number, exchange, or type..."
-                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                        className={`w-full pl-10 pr-4 py-2.5 rounded-lg border ${
+                          theme === 'dark' 
+                            ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-400' 
+                            : 'border-gray-200 focus:border-blue-500 focus:ring-blue-200'
+                        } transition-all`}
                       />
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                         🔍
@@ -201,7 +207,11 @@ export default function FaultLocationsPage() {
                       type="date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      className={`w-full px-4 py-2.5 rounded-lg border ${
+                        theme === 'dark' 
+                          ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500 focus:ring-blue-400' 
+                          : 'border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
+                      } transition-all`}
                       placeholder="Start Date"
                     />
                   </div>
@@ -210,7 +220,11 @@ export default function FaultLocationsPage() {
                       type="date"
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      className={`w-full px-4 py-2.5 rounded-lg border ${
+                        theme === 'dark' 
+                          ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500 focus:ring-blue-400' 
+                          : 'border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
+                      } transition-all`}
                       placeholder="End Date"
                     />
                   </div>
@@ -220,7 +234,11 @@ export default function FaultLocationsPage() {
                     <select
                       value={filterExchange}
                       onChange={(e) => setFilterExchange(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      className={`w-full px-4 py-2.5 rounded-lg border ${
+                        theme === 'dark' 
+                          ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500 focus:ring-blue-400' 
+                          : 'border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
+                      } transition-all`}
                     >
                       <option value="all">All Exchanges</option>
                       {exchanges.map(exchange => (
@@ -233,12 +251,12 @@ export default function FaultLocationsPage() {
                 </div>
 
                 {/* Incidents Table */}
-                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-md mb-6">
+                <div className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} rounded-lg border overflow-hidden shadow-md mb-6`}>
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
+                      <thead className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
                             <input
                               type="checkbox"
                               checked={selectedIncidents.size === filteredIncidents.length}
@@ -246,27 +264,27 @@ export default function FaultLocationsPage() {
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
                             Incident ID
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
                             Exchange
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
                             Fault Type
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
                             Date
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
                             Location
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
+                      <tbody className={`${theme === 'dark' ? 'bg-gray-800 divide-gray-700' : 'bg-white divide-gray-200'}`}>
                         {filteredIncidents.map((incident) => (
-                          <tr key={incident.id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-4 py-3 whitespace-nowrap">
+                          <tr key={incident.id} className={`${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors`}>
+                            <td className={`px-4 py-3 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>
                               <input
                                 type="checkbox"
                                 checked={selectedIncidents.has(incident.id)}
@@ -274,19 +292,19 @@ export default function FaultLocationsPage() {
                                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                               />
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">
+                            <td className={`px-4 py-3 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} font-medium`}>
                               {incident.incidentNumber}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-gray-700">
+                            <td className={`px-4 py-3 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>
                               {incident.exchangeName}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-gray-700">
+                            <td className={`px-4 py-3 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>
                               {incident.faultType}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-gray-700">
+                            <td className={`px-4 py-3 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>
                               {incident.timestamp.toDate().toLocaleDateString()}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
+                            <td className={`px-4 py-3 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>
                               {incident.location ? (
                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                   📍 Available
@@ -309,11 +327,19 @@ export default function FaultLocationsPage() {
                   <div className="flex items-center gap-4">
                     <button
                       onClick={handleSelectAll}
-                      className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-all shadow-sm"
+                      className={`px-4 py-2 ${
+                        theme === 'dark' 
+                          ? 'bg-gray-800 border-gray-700 text-white hover:bg-gray-700' 
+                          : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                      } border rounded-lg transition-all shadow-sm`}
                     >
                       {selectedIncidents.size === filteredIncidents.length ? 'Deselect All' : 'Select All'}
                     </button>
-                    <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-lg">
+                    <span className={`text-sm ${
+                      theme === 'dark' 
+                        ? 'text-gray-300 bg-gray-700' 
+                        : 'text-gray-600 bg-gray-100'
+                    } px-3 py-1 rounded-lg`}>
                       {selectedIncidents.size} selected
                     </span>
                   </div>
@@ -330,19 +356,26 @@ export default function FaultLocationsPage() {
                         setSelectedIncidents(new Set());
                         setShowMap(false);
                       }}
-                      className="px-6 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 transition-all shadow-md hover:shadow-lg"
+                      className={`px-6 py-2 ${
+                        theme === 'dark' 
+                          ? 'bg-gray-700 text-white hover:bg-gray-600' 
+                          : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200'
+                      } border rounded-lg transition-all shadow-md hover:shadow-lg`}
                     >
-                      Clear
+                      Reset
                     </button>
                   </div>
                 </div>
 
-                {/* Map */}
-                {showMap && selectedIncidentsData.length > 0 && (
-                  <div className="rounded-lg overflow-hidden shadow-xl border-4 border-white">
-                    <Map
-                      incidents={selectedIncidentsData}
+                {/* Map Section */}
+                {showMap && (
+                  <div className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} rounded-lg border p-4 shadow-lg`}>
+                    <h2 className={`text-xl font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                      Incident Map
+                    </h2>
+                    <Map 
                       center={DEFAULT_CENTER}
+                      incidents={incidents.filter(incident => selectedIncidents.has(incident.id))}
                     />
                   </div>
                 )}

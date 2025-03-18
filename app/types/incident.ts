@@ -21,6 +21,7 @@ export interface Incident {
   faultEndTime?: Timestamp;
   status: string;
   closedBy?: string;
+  faultRestorer?: string;
   remarks?: string;
   location?: Location;
   locationUpdatedAt?: string;
