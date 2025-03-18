@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebaseConfig';
 import NavBar from '@/app/components/NavBar';
 import { Documentation } from '../types';
@@ -70,8 +70,12 @@ export default function DocumentationPage() {
         const document: Documentation = {
           id: doc.id,
           ...data,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
+          createdAt: data.createdAt instanceof Timestamp 
+            ? data.createdAt.toDate() 
+            : (data.createdAt || new Date()),
+          updatedAt: data.updatedAt instanceof Timestamp
+            ? data.updatedAt.toDate()
+            : (data.updatedAt || new Date()),
         };
         
         fetchedDocuments.push(document);
@@ -165,11 +169,11 @@ export default function DocumentationPage() {
         updatedAt: serverTimestamp(),
       };
       
-      // Remove the id to avoid conflicts
-      delete versionHistoryRecord.id;
+      // Create a version history record, excluding the id instead of deleting it
+      const { id, ...versionHistoryWithoutId } = versionHistoryRecord;
       
       // Save the current version to history
-      await addDoc(collection(db, 'documentationHistory'), versionHistoryRecord);
+      await addDoc(collection(db, 'documentationHistory'), versionHistoryWithoutId);
       
       // Increment version number
       const versionParts = version.split('.');
@@ -262,11 +266,17 @@ export default function DocumentationPage() {
       querySnapshot.forEach((doc) => {
         const data = doc.data() as Documentation;
         if (data.parentId === documentId) {
+          // Extract id from data to avoid duplicate
+          const { id: dataId, ...restOfData } = data;
           history.push({
             id: doc.id,
-            ...data,
-            createdAt: data.createdAt?.toDate() || new Date(),
-            updatedAt: data.updatedAt?.toDate() || new Date(),
+            ...restOfData,
+            createdAt: data.createdAt instanceof Timestamp 
+              ? data.createdAt.toDate() 
+              : (data.createdAt || new Date()),
+            updatedAt: data.updatedAt instanceof Timestamp
+              ? data.updatedAt.toDate()
+              : (data.updatedAt || new Date()),
           });
         }
       });
@@ -292,14 +302,19 @@ export default function DocumentationPage() {
     setCurrentDocument(null);
   };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (date: Date | Timestamp) => {
+    // Convert to Date if it's a Timestamp
+    const dateObj = date instanceof Date 
+      ? date 
+      : (date as any).toDate?.() || new Date();
+    
     return new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
-    }).format(date);
+    }).format(dateObj);
   };
 
   return (

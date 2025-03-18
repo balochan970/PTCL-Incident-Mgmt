@@ -8,8 +8,11 @@ import {
   Title,
   Tooltip,
   Legend,
+  ChartData,
+  ChartOptions,
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
+import { Context } from 'chartjs-plugin-datalabels';
 import { Incident } from '../../types/incident';
 
 // Register ChartJS components
@@ -122,12 +125,12 @@ export default function StakeholderPerformanceMetrics({ incidents }: Stakeholder
         datalabels: {
           display: true,
           color: '#fff',
-          backgroundColor: context => context.dataset.backgroundColor,
+          backgroundColor: (context: Context) => context.dataset.backgroundColor as string,
           borderRadius: 3,
           font: {
-            weight: 'bold'
+            weight: 'bold' as const
           },
-          formatter: (value) => value
+          formatter: (value: number) => value
         }
       },
     ],
@@ -144,8 +147,8 @@ export default function StakeholderPerformanceMetrics({ incidents }: Stakeholder
         display: true,
         labels: {
           font: {
-            size: 14,
-            weight: 'bold'
+            size: 12,
+            weight: 'bold' as const
           }
         }
       },
@@ -171,12 +174,12 @@ export default function StakeholderPerformanceMetrics({ incidents }: Stakeholder
         }
       },
       datalabels: {
-        align: 'end',
-        anchor: 'end',
+        align: 'end' as const,
+        anchor: 'end' as const,
         display: true,
         color: '#333',
         font: {
-          weight: 'bold'
+          weight: 'bold' as const
         }
       }
     },
@@ -185,34 +188,33 @@ export default function StakeholderPerformanceMetrics({ incidents }: Stakeholder
         beginAtZero: true,
         title: {
           display: true,
-          text: metricType === 'resolutionTime' ? 'Hours' : 'Count',
+          text: 'Stakeholders',
           font: {
-            size: 14,
-            weight: 'bold'
+            size: 12,
+            weight: 'bold' as const
           }
         },
         ticks: {
           font: {
-            weight: 'bold'
-          },
-          callback: function(value: any) {
-            return metricType === 'resolutionTime' ? value + ' hrs' : value;
+            weight: 'bold' as const
           }
         }
       },
       y: {
+        beginAtZero: true,
         title: {
           display: true,
-          text: 'Stakeholder',
+          text: metricType === 'involvement' ? 'Number of Incidents' : 'Resolution Time (hours)',
           font: {
-            size: 14,
-            weight: 'bold'
+            size: 12,
+            weight: 'bold' as const
           }
         },
         ticks: {
           font: {
-            weight: 'bold'
-          }
+            weight: 'bold' as const
+          },
+          callback: (value: any) => metricType === 'resolutionTime' ? `${value}h` : value
         }
       },
     },

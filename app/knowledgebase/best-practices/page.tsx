@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebaseConfig';
 import NavBar from '@/app/components/NavBar';
 import { BestPractice } from '../types';
@@ -67,8 +67,12 @@ export default function BestPracticesPage() {
         const practice: BestPractice = {
           id: doc.id,
           ...data,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
+          createdAt: data.createdAt instanceof Timestamp 
+            ? data.createdAt.toDate() 
+            : (data.createdAt || new Date()),
+          updatedAt: data.updatedAt instanceof Timestamp
+            ? data.updatedAt.toDate()
+            : (data.updatedAt || new Date()),
         };
         
         fetchedPractices.push(practice);
@@ -351,10 +355,10 @@ export default function BestPracticesPage() {
                   </div>
                   <CardDescription className="flex flex-col gap-1">
                     <Badge variant="outline">{practice.category}</Badge>
-                    {practice.rating > 0 && (
+                    {(practice.rating ?? 0) > 0 && (
                       <div className="flex items-center mt-1">
-                        {renderStars(practice.rating)}
-                        <span className="text-xs ml-1 text-gray-500">({practice.ratingCount})</span>
+                        {renderStars(practice.rating ?? 0)}
+                        <span className="text-xs ml-1 text-gray-500">({practice.ratingCount ?? 0})</span>
                       </div>
                     )}
                   </CardDescription>
@@ -466,11 +470,11 @@ export default function BestPracticesPage() {
                 <DialogDescription>
                   <div className="flex flex-col gap-2 mt-2">
                     <Badge variant="outline">{selectedPractice.category}</Badge>
-                    {selectedPractice.rating > 0 && (
+                    {(selectedPractice.rating ?? 0) > 0 && (
                       <div className="flex items-center mt-1">
-                        {renderStars(selectedPractice.rating)}
+                        {renderStars(selectedPractice.rating ?? 0)}
                         <span className="text-xs ml-1 text-gray-500">
-                          ({selectedPractice.ratingCount} {selectedPractice.ratingCount === 1 ? 'rating' : 'ratings'})
+                          ({selectedPractice.ratingCount ?? 0} {(selectedPractice.ratingCount ?? 0) === 1 ? 'rating' : 'ratings'})
                         </span>
                       </div>
                     )}
@@ -520,7 +524,9 @@ export default function BestPracticesPage() {
                   </div>
                   <div className="flex items-center">
                     <Clock className="h-3 w-3 mr-1" />
-                    Last updated {selectedPractice.updatedAt.toLocaleDateString()}
+                    Last updated {selectedPractice.updatedAt instanceof Date 
+                      ? selectedPractice.updatedAt.toLocaleDateString()
+                      : (selectedPractice.updatedAt as any).toDate().toLocaleDateString()}
                   </div>
                 </div>
               </div>

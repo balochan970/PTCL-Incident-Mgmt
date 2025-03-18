@@ -1,3 +1,5 @@
+import { Timestamp } from 'firebase/firestore';
+
 export interface Contact {
   id: string;
   name: string;
@@ -45,10 +47,12 @@ export interface Documentation {
   category: string;
   tags: string[];
   author: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: Date | Timestamp;
+  updatedAt: Date | Timestamp;
   version: string;
   attachments?: string[];
+  parentId?: string;
+  isVersionHistory?: boolean;
 }
 
 export interface TroubleshootingGuide {
@@ -60,8 +64,8 @@ export interface TroubleshootingGuide {
   equipmentType: string;
   faultType: string;
   author: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: Date | Timestamp;
+  updatedAt: Date | Timestamp;
   rating?: number;
   ratingCount?: number;
 }
@@ -81,8 +85,8 @@ export interface BestPractice {
   content: string;
   examples: string[];
   author: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: Date | Timestamp;
+  updatedAt: Date | Timestamp;
   rating?: number;
   ratingCount?: number;
 } 

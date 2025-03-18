@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebaseConfig';
 import NavBar from '@/app/components/NavBar';
 import { TroubleshootingGuide, TroubleshootingSolution } from '../types';
@@ -58,8 +58,12 @@ export default function TroubleshootingGuidesPage() {
         const guide: TroubleshootingGuide = {
           id: doc.id,
           ...data,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
+          createdAt: data.createdAt instanceof Timestamp 
+            ? data.createdAt.toDate() 
+            : (data.createdAt || new Date()),
+          updatedAt: data.updatedAt instanceof Timestamp
+            ? data.updatedAt.toDate()
+            : (data.updatedAt || new Date()),
         };
         
         fetchedGuides.push(guide);
@@ -236,7 +240,7 @@ export default function TroubleshootingGuidesPage() {
     if (field === 'steps') {
       updatedSolutions[index].steps = value.split('\n').map((s: string) => s.trim()).filter((s: string) => s);
     } else {
-      updatedSolutions[index][field] = value;
+      (updatedSolutions[index] as any)[field] = value;
     }
     
     setSolutions(updatedSolutions);
@@ -660,7 +664,9 @@ export default function TroubleshootingGuidesPage() {
                   </div>
                   <div className="flex items-center">
                     <Clock className="h-3 w-3 mr-1" />
-                    Last updated {selectedGuide.updatedAt.toLocaleDateString()}
+                    Last updated {selectedGuide.updatedAt instanceof Date 
+                      ? selectedGuide.updatedAt.toLocaleDateString()
+                      : (selectedGuide.updatedAt as any).toDate().toLocaleDateString()}
                   </div>
                 </div>
               </div>

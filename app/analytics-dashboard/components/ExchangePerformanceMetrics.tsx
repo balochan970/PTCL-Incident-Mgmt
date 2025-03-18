@@ -8,8 +8,11 @@ import {
   Title,
   Tooltip,
   Legend,
+  ChartData,
+  ChartOptions
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
+import { Context } from 'chartjs-plugin-datalabels';
 import { Incident } from '../../types/incident';
 
 // Register ChartJS components
@@ -119,12 +122,12 @@ export default function ExchangePerformanceMetrics({ incidents }: ExchangePerfor
         datalabels: {
           display: true,
           color: '#fff',
-          backgroundColor: context => context.dataset.backgroundColor,
+          backgroundColor: (context: Context) => context.dataset.backgroundColor as string,
           borderRadius: 3,
           font: {
-            weight: 'bold'
+            weight: 'bold' as const
           },
-          formatter: (value) => value
+          formatter: (value: number) => value
         }
       },
     ],
@@ -140,8 +143,8 @@ export default function ExchangePerformanceMetrics({ incidents }: ExchangePerfor
         display: true,
         labels: {
           font: {
-            size: 14,
-            weight: 'bold'
+            size: 12,
+            weight: 'bold' as const
           }
         }
       },
@@ -167,12 +170,12 @@ export default function ExchangePerformanceMetrics({ incidents }: ExchangePerfor
         }
       },
       datalabels: {
-        align: 'end',
-        anchor: 'end',
+        align: 'end' as const,
+        anchor: 'end' as const,
         display: true,
         color: '#333',
         font: {
-          weight: 'bold'
+          weight: 'bold' as const
         }
       }
     },
@@ -181,35 +184,31 @@ export default function ExchangePerformanceMetrics({ incidents }: ExchangePerfor
         beginAtZero: true,
         title: {
           display: true,
-          text: metricType === 'resolutionTime' ? 'Hours' : 'Count',
+          text: metricType === 'frequency' ? 'Number of Incidents' : 'Resolution Time (hours)',
           font: {
-            size: 14,
-            weight: 'bold'
+            size: 12,
+            weight: 'bold' as const
           }
         },
         ticks: {
           font: {
-            weight: 'bold'
+            weight: 'bold' as const
           },
-          callback: function(value: any) {
-            return metricType === 'resolutionTime' ? value + ' hrs' : value;
-          }
+          callback: (value: any) => metricType === 'resolutionTime' ? `${value}h` : value
         }
       },
       x: {
         title: {
           display: true,
-          text: 'Exchange',
+          text: 'Exchanges',
           font: {
-            size: 14,
-            weight: 'bold'
+            size: 12,
+            weight: 'bold' as const
           }
         },
         ticks: {
-          maxRotation: 45,
-          minRotation: 45,
           font: {
-            weight: 'bold'
+            weight: 'bold' as const
           }
         }
       },
