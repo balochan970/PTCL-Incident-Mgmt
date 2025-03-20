@@ -1,5 +1,7 @@
 name: Deploy to Firebase Hosting
 
+# This workflow will deploy the application to Firebase Hosting
+# It runs on push to main branch or when manually triggered
 on:
   push:
     branches:
