@@ -193,8 +193,8 @@ export class SupabaseMemoryManager implements MemoryManager {
     
     return data.map((episode: any) => ({
       ...episode,
-      startTime: new Date(episode.startTime),
-      endTime: episode.endTime ? new Date(episode.endTime) : undefined,
+      startTime: new Date(episode.start_time),
+      endTime: episode.end_time ? new Date(episode.end_time) : undefined,
       messages: episode.messages || [],
       relatedIncidents: episode.related_incidents || [],
       topics: episode.topics || []
