@@ -13,6 +13,7 @@ const shortcuts = [
   { key: 'Ctrl + H', description: 'Go to Home' },
   { key: 'Ctrl + K', description: 'Open Knowledge Base' },
   { key: 'Ctrl + L', description: 'View Fault Locations' },
+  { key: 'Ctrl + D', description: 'Analytics Dashboard' },
   { key: 'Esc', description: 'Close dialogs' }
 ];
 

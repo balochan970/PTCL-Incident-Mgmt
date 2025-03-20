@@ -46,6 +46,8 @@ export interface Documentation {
   content: string;
   category: string;
   tags: string[];
+  imageUrl?: string;
+  imageUrls?: string[];
   author: string;
   createdAt: Date | Timestamp;
   updatedAt: Date | Timestamp;
@@ -76,17 +78,20 @@ export interface TroubleshootingSolution {
   expectedOutcome: string;
   successRate?: number;
   timeToResolve?: string;
+  images?: string[];
 }
 
 export interface BestPractice {
   id: string;
   title: string;
   category: string;
-  content: string;
-  examples: string[];
+  description: string;
+  recommendations: string[];
+  benefitsAndOutcomes: string[];
   author: string;
   createdAt: Date | Timestamp;
   updatedAt: Date | Timestamp;
-  rating?: number;
-  ratingCount?: number;
+  likes?: number;
+  dislikes?: number;
+  imageUrls?: string[];
 } 

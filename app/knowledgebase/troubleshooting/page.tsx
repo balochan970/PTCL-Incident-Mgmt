@@ -1,7 +1,6 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebaseConfig';
+import React, { useState, useEffect, useRef } from 'react';
+import { Timestamp } from 'firebase/firestore';
 import NavBar from '@/app/components/NavBar';
 import { TroubleshootingGuide, TroubleshootingSolution } from '../types';
 import { useToast } from "@/components/ui/use-toast";
@@ -12,7 +11,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Search, Plus, Edit, Trash2, Star, Clock, User, AlertCircle, CheckCircle, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Star, Clock, User, AlertCircle, CheckCircle, ThumbsUp, ThumbsDown, ImageIcon, X } from 'lucide-react';
+import { troubleshootingService } from '@/lib/supabaseServices';
+import { uploadImage } from '@/lib/supabaseImageService';
 
 export default function TroubleshootingGuidesPage() {
   const [guides, setGuides] = useState<TroubleshootingGuide[]>([]);
@@ -24,6 +25,9 @@ export default function TroubleshootingGuidesPage() {
   const [currentGuide, setCurrentGuide] = useState<TroubleshootingGuide | null>(null);
   const [selectedGuide, setSelectedGuide] = useState<TroubleshootingGuide | null>(null);
   const [isGuideDetailOpen, setIsGuideDetailOpen] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [currentSolutionIndex, setCurrentSolutionIndex] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Form state
   const [title, setTitle] = useState('');
@@ -32,7 +36,7 @@ export default function TroubleshootingGuidesPage() {
   const [equipmentType, setEquipmentType] = useState('');
   const [faultType, setFaultType] = useState('');
   const [solutions, setSolutions] = useState<TroubleshootingSolution[]>([
-    { id: '1', steps: [''], expectedOutcome: '', successRate: 0, timeToResolve: '' }
+    { id: '1', steps: [''], expectedOutcome: '', successRate: 0, timeToResolve: '', images: [] }
   ]);
   
   const { toast } = useToast();
@@ -48,27 +52,8 @@ export default function TroubleshootingGuidesPage() {
   const fetchGuides = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, 'troubleshooting'), orderBy('createdAt', 'desc'));
-      const querySnapshot = await getDocs(q);
-      
-      const fetchedGuides: TroubleshootingGuide[] = [];
-      
-      querySnapshot.forEach((doc) => {
-        const data = doc.data() as Omit<TroubleshootingGuide, 'id'>;
-        const guide: TroubleshootingGuide = {
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt instanceof Timestamp 
-            ? data.createdAt.toDate() 
-            : (data.createdAt || new Date()),
-          updatedAt: data.updatedAt instanceof Timestamp
-            ? data.updatedAt.toDate()
-            : (data.updatedAt || new Date()),
-        };
-        
-        fetchedGuides.push(guide);
-      });
-      
+      const fetchedGuides = await troubleshootingService.getAll();
+      console.log('Fetched guides:', fetchedGuides);
       setGuides(fetchedGuides);
       setFilteredGuides(fetchedGuides);
     } catch (error) {
@@ -84,19 +69,16 @@ export default function TroubleshootingGuidesPage() {
   };
 
   const filterGuides = () => {
-    if (!searchQuery) {
-      setFilteredGuides(guides);
-      return;
-    }
+    let filtered = [...guides];
     
-    const query = searchQuery.toLowerCase();
-    const filtered = guides.filter(guide => 
-      guide.title.toLowerCase().includes(query) || 
-      guide.problem.toLowerCase().includes(query) || 
-      guide.symptoms.some(symptom => symptom.toLowerCase().includes(query)) ||
-      guide.equipmentType.toLowerCase().includes(query) ||
-      guide.faultType.toLowerCase().includes(query)
-    );
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(guide => 
+        guide.title.toLowerCase().includes(query) ||
+        guide.problem.toLowerCase().includes(query) ||
+        guide.symptoms.some(symptom => symptom.toLowerCase().includes(query))
+      );
+    }
     
     setFilteredGuides(filtered);
   };
@@ -105,21 +87,19 @@ export default function TroubleshootingGuidesPage() {
     try {
       const symptomsArray = symptoms.split('\n').map(s => s.trim()).filter(s => s);
       
-      const newGuide = {
+      const newGuide: Omit<TroubleshootingGuide, 'id' | 'createdAt' | 'updatedAt'> = {
         title,
         problem,
         symptoms: symptomsArray,
-        solutions,
         equipmentType,
         faultType,
-        author: JSON.parse(localStorage.getItem('auth') || '{}').username || 'Unknown',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        solutions,
+        author: 'Current User',
         rating: 0,
         ratingCount: 0
       };
       
-      await addDoc(collection(db, 'troubleshooting'), newGuide);
+      await troubleshootingService.create(newGuide);
       
       toast({
         title: "Success",
@@ -145,17 +125,17 @@ export default function TroubleshootingGuidesPage() {
     try {
       const symptomsArray = symptoms.split('\n').map(s => s.trim()).filter(s => s);
       
-      const updatedGuide = {
+      const updatedGuide: Partial<TroubleshootingGuide> = {
         title,
         problem,
         symptoms: symptomsArray,
-        solutions,
         equipmentType,
         faultType,
-        updatedAt: serverTimestamp(),
+        solutions,
+        updatedAt: new Date()
       };
       
-      await updateDoc(doc(db, 'troubleshooting', currentGuide.id), updatedGuide);
+      await troubleshootingService.update(currentGuide.id, updatedGuide);
       
       toast({
         title: "Success",
@@ -165,6 +145,7 @@ export default function TroubleshootingGuidesPage() {
       resetForm();
       setIsFormOpen(false);
       setIsEditMode(false);
+      setCurrentGuide(null);
       fetchGuides();
     } catch (error) {
       console.error('Error updating guide:', error);
@@ -177,24 +158,26 @@ export default function TroubleshootingGuidesPage() {
   };
 
   const handleDeleteGuide = async (id: string) => {
-    if (confirm('Are you sure you want to delete this troubleshooting guide?')) {
-      try {
-        await deleteDoc(doc(db, 'troubleshooting', id));
-        
-        toast({
-          title: "Success",
-          description: "Troubleshooting guide deleted successfully",
-        });
-        
-        fetchGuides();
-      } catch (error) {
-        console.error('Error deleting guide:', error);
-        toast({
-          title: "Error",
-          description: "Failed to delete troubleshooting guide",
-          variant: "destructive",
-        });
+    try {
+      await troubleshootingService.delete(id);
+      
+      toast({
+        title: "Success",
+        description: "Troubleshooting guide deleted successfully",
+      });
+      
+      fetchGuides();
+      if (selectedGuide && selectedGuide.id === id) {
+        setSelectedGuide(null);
+        setIsGuideDetailOpen(false);
       }
+    } catch (error) {
+      console.error('Error deleting guide:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete troubleshooting guide",
+        variant: "destructive",
+      });
     }
   };
 
@@ -211,6 +194,12 @@ export default function TroubleshootingGuidesPage() {
   };
 
   const handleViewGuide = (guide: TroubleshootingGuide) => {
+    console.log('Viewing guide with solutions:', guide.solutions);
+    if (guide.solutions) {
+      guide.solutions.forEach((solution, index) => {
+        console.log(`Solution ${index} images:`, solution.images);
+      });
+    }
     setSelectedGuide(guide);
     setIsGuideDetailOpen(true);
   };
@@ -218,75 +207,152 @@ export default function TroubleshootingGuidesPage() {
   const handleAddSolution = () => {
     setSolutions([
       ...solutions,
-      { 
-        id: `${solutions.length + 1}`, 
-        steps: [''], 
-        expectedOutcome: '', 
-        successRate: 0, 
-        timeToResolve: '' 
+      {
+        id: `solution-${Date.now()}`,
+        steps: [''],
+        expectedOutcome: '',
+        successRate: 0,
+        timeToResolve: '',
+        images: []
       }
     ]);
   };
 
   const handleRemoveSolution = (index: number) => {
-    const updatedSolutions = [...solutions];
-    updatedSolutions.splice(index, 1);
-    setSolutions(updatedSolutions);
+    setSolutions(solutions.filter((_, i) => i !== index));
   };
 
   const handleSolutionChange = (index: number, field: keyof TroubleshootingSolution, value: any) => {
     const updatedSolutions = [...solutions];
-    
-    if (field === 'steps') {
-      updatedSolutions[index].steps = value.split('\n').map((s: string) => s.trim()).filter((s: string) => s);
+    if (field === 'steps' && typeof value === 'string') {
+      updatedSolutions[index].steps = value.split('\n').map(s => s.trim()).filter(s => s);
+    } else if (field === 'steps' && Array.isArray(value)) {
+      updatedSolutions[index][field] = value;
     } else {
-      (updatedSolutions[index] as any)[field] = value;
+      // @ts-ignore (field access is safe)
+      updatedSolutions[index][field] = value;
     }
-    
     setSolutions(updatedSolutions);
+  };
+
+  const handleImageUpload = async (index: number) => {
+    if (!fileInputRef.current?.files || fileInputRef.current.files.length === 0) return;
+    
+    const file = fileInputRef.current.files[0];
+    setUploadingImage(true);
+    setCurrentSolutionIndex(index);
+    
+    try {
+      // Check file size limit (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Error",
+          description: "Image size exceeds 5MB limit. Please use a smaller image.",
+          variant: "destructive",
+        });
+        setUploadingImage(false);
+        return;
+      }
+      
+      // Upload the image to Supabase
+      const imageUrl = await uploadImage(file);
+      
+      // Add the image URL to the solution
+      const updatedSolutions = [...solutions];
+      if (!updatedSolutions[index].images) {
+        updatedSolutions[index].images = [];
+      }
+      updatedSolutions[index].images?.push(imageUrl);
+      setSolutions(updatedSolutions);
+      
+      toast({
+        title: "Success",
+        description: "Image uploaded successfully",
+      });
+      
+      // Reset the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload image",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingImage(false);
+      setCurrentSolutionIndex(null);
+    }
+  };
+
+  const handleDeleteImage = (solutionIndex: number, imageIndex: number) => {
+    const updatedSolutions = [...solutions];
+    if (updatedSolutions[solutionIndex].images) {
+      updatedSolutions[solutionIndex].images?.splice(imageIndex, 1);
+      setSolutions(updatedSolutions);
+      
+      toast({
+        title: "Success",
+        description: "Image removed successfully",
+      });
+    }
   };
 
   const handleRateSolution = async (guideId: string, solutionId: string, isHelpful: boolean) => {
     try {
-      const guideRef = doc(db, 'troubleshooting', guideId);
       const guide = guides.find(g => g.id === guideId);
-      
       if (!guide) return;
       
-      const updatedSolutions = guide.solutions.map(solution => {
-        if (solution.id === solutionId) {
-          const currentRate = solution.successRate || 0;
-          const currentCount = guide.ratingCount || 0;
-          
-          // Simple weighted average calculation
-          const newRate = isHelpful 
-            ? Math.min(100, currentRate + (100 - currentRate) / (currentCount + 1))
-            : Math.max(0, currentRate - currentRate / (currentCount + 1));
-          
-          return {
-            ...solution,
-            successRate: parseFloat(newRate.toFixed(1))
-          };
-        }
-        return solution;
-      });
+      const solutionIndex = guide.solutions.findIndex(s => s.id === solutionId);
+      if (solutionIndex === -1) return;
       
-      await updateDoc(guideRef, {
+      const updatedSolutions = [...guide.solutions];
+      const solution = { ...updatedSolutions[solutionIndex] };
+      
+      const currentRate = solution.successRate || 0;
+      const currentCount = guide.ratingCount || 0;
+      
+      let newRate: number;
+      if (currentCount === 0) {
+        newRate = isHelpful ? 100 : 0;
+      } else {
+        const totalPositive = (currentRate / 100) * currentCount;
+        const newTotalPositive = isHelpful ? totalPositive + 1 : totalPositive;
+        newRate = (newTotalPositive / (currentCount + 1)) * 100;
+      }
+      
+      solution.successRate = Math.round(newRate);
+      updatedSolutions[solutionIndex] = solution;
+      
+      const updatedGuide: Partial<TroubleshootingGuide> = {
         solutions: updatedSolutions,
         ratingCount: (guide.ratingCount || 0) + 1
-      });
+      };
+      
+      await troubleshootingService.update(guideId, updatedGuide);
       
       toast({
-        title: "Thank you!",
-        description: "Your feedback helps improve our troubleshooting guides",
+        title: "Thank You",
+        description: "Your feedback has been recorded.",
       });
       
       fetchGuides();
+      
+      if (selectedGuide && selectedGuide.id === guideId) {
+        const updatedSelectedGuide = {
+          ...selectedGuide,
+          solutions: updatedSolutions,
+          ratingCount: (selectedGuide.ratingCount || 0) + 1
+        };
+        setSelectedGuide(updatedSelectedGuide);
+      }
     } catch (error) {
       console.error('Error rating solution:', error);
       toast({
         title: "Error",
-        description: "Failed to submit rating",
+        description: "Failed to submit your rating",
         variant: "destructive",
       });
     }
@@ -298,14 +364,38 @@ export default function TroubleshootingGuidesPage() {
     setSymptoms('');
     setEquipmentType('');
     setFaultType('');
-    setSolutions([{ id: '1', steps: [''], expectedOutcome: '', successRate: 0, timeToResolve: '' }]);
+    setSolutions([
+      { id: '1', steps: [''], expectedOutcome: '', successRate: 0, timeToResolve: '', images: [] }
+    ]);
     setCurrentGuide(null);
+  };
+
+  const formatDate = (date: Date | Timestamp) => {
+    if (date instanceof Timestamp) {
+      date = date.toDate();
+    }
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
   };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <NavBar />
       <div className="container mx-auto px-4 py-8">
+        {/* Hidden file input for image uploads */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          accept="image/*"
+          onChange={() => currentSolutionIndex !== null && handleImageUpload(currentSolutionIndex)}
+        />
+        
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Troubleshooting Guides</h1>
           <Button onClick={() => { resetForm(); setIsFormOpen(true); setIsEditMode(false); }}>
@@ -391,20 +481,17 @@ export default function TroubleshootingGuidesPage() {
         )}
       </div>
 
-      {/* Create/Edit Guide Dialog */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-[700px]">
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{isEditMode ? 'Edit Troubleshooting Guide' : 'Create New Troubleshooting Guide'}</DialogTitle>
             <DialogDescription>
-              {isEditMode 
-                ? 'Update the troubleshooting guide details below' 
-                : 'Fill in the details to create a new troubleshooting guide'}
+              Fill in the details to create a new troubleshooting guide
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+          <div className="grid gap-6 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="title" className="text-right">
+              <label htmlFor="title" className="text-right font-medium">
                 Title
               </label>
               <Input
@@ -412,11 +499,11 @@ export default function TroubleshootingGuidesPage() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="col-span-3"
-                placeholder="e.g., Resolving Fiber Link Failures"
+                placeholder="e.g., Resolving Wi-Fi Connectivity Issues"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="equipmentType" className="text-right">
+              <label htmlFor="equipmentType" className="text-right font-medium">
                 Equipment Type
               </label>
               <Input
@@ -424,11 +511,11 @@ export default function TroubleshootingGuidesPage() {
                 value={equipmentType}
                 onChange={(e) => setEquipmentType(e.target.value)}
                 className="col-span-3"
-                placeholder="e.g., Router, Switch, OLT"
+                placeholder="e.g., Router, Switch, Fiber Modem"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="faultType" className="text-right">
+              <label htmlFor="faultType" className="text-right font-medium">
                 Fault Type
               </label>
               <Input
@@ -436,11 +523,11 @@ export default function TroubleshootingGuidesPage() {
                 value={faultType}
                 onChange={(e) => setFaultType(e.target.value)}
                 className="col-span-3"
-                placeholder="e.g., Fiber Break, Power Outage"
+                placeholder="e.g., Connectivity, Hardware, Configuration"
               />
             </div>
             <div className="grid grid-cols-4 items-start gap-4">
-              <label htmlFor="problem" className="text-right pt-2">
+              <label htmlFor="problem" className="text-right font-medium pt-2">
                 Problem Description
               </label>
               <Textarea
@@ -448,12 +535,12 @@ export default function TroubleshootingGuidesPage() {
                 value={problem}
                 onChange={(e) => setProblem(e.target.value)}
                 className="col-span-3"
-                rows={3}
                 placeholder="Describe the problem in detail"
+                rows={3}
               />
             </div>
             <div className="grid grid-cols-4 items-start gap-4">
-              <label htmlFor="symptoms" className="text-right pt-2">
+              <label htmlFor="symptoms" className="text-right font-medium pt-2">
                 Symptoms
               </label>
               <Textarea
@@ -461,21 +548,21 @@ export default function TroubleshootingGuidesPage() {
                 value={symptoms}
                 onChange={(e) => setSymptoms(e.target.value)}
                 className="col-span-3"
-                rows={4}
                 placeholder="List symptoms, one per line"
+                rows={3}
               />
             </div>
             
-            <div className="col-span-4">
-              <h3 className="font-medium text-lg mb-2">Solutions</h3>
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium mb-4">Solutions</h3>
               {solutions.map((solution, index) => (
-                <div key={index} className="border rounded-md p-4 mb-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="font-medium">Solution {index + 1}</h4>
+                <div key={solution.id} className="border rounded-lg p-4 mb-6 bg-gray-50/50">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-md font-medium">Solution {index + 1}</h4>
                     {solutions.length > 1 && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => handleRemoveSolution(index)}
                       >
                         Remove
@@ -483,13 +570,13 @@ export default function TroubleshootingGuidesPage() {
                     )}
                   </div>
                   
-                  <div className="grid gap-4">
+                  <div className="grid gap-6">
                     <div className="grid grid-cols-4 items-start gap-4">
-                      <label className="text-right pt-2 text-sm">
+                      <label className="text-right font-medium pt-2">
                         Steps
                       </label>
                       <Textarea
-                        value={solution.steps.join('\n')}
+                        value={Array.isArray(solution.steps) ? solution.steps.join('\n') : ''}
                         onChange={(e) => handleSolutionChange(index, 'steps', e.target.value)}
                         className="col-span-3"
                         rows={4}
@@ -497,8 +584,54 @@ export default function TroubleshootingGuidesPage() {
                       />
                     </div>
                     
+                    {/* Image upload section */}
+                    <div className="grid grid-cols-4 items-start gap-4">
+                      <label className="text-right font-medium pt-2">
+                        Images
+                      </label>
+                      <div className="col-span-3">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          className="mb-2"
+                          onClick={() => {
+                            setCurrentSolutionIndex(index);
+                            fileInputRef.current?.click();
+                          }}
+                          disabled={uploadingImage}
+                        >
+                          <ImageIcon className="mr-2 h-4 w-4" />
+                          {uploadingImage && currentSolutionIndex === index 
+                            ? 'Uploading...' 
+                            : 'Add Image'}
+                        </Button>
+                        
+                        {/* Display uploaded images */}
+                        {solution.images && solution.images.length > 0 && (
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
+                            {solution.images.map((imageUrl, imgIndex) => (
+                              <div key={imgIndex} className="relative group border rounded p-1">
+                                <img 
+                                  src={imageUrl} 
+                                  alt={`Solution ${index + 1} image ${imgIndex + 1}`}
+                                  className="w-full h-32 object-cover rounded"
+                                />
+                                <button
+                                  type="button"
+                                  className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => handleDeleteImage(index, imgIndex)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
                     <div className="grid grid-cols-4 items-center gap-4">
-                      <label className="text-right text-sm">
+                      <label className="text-right font-medium">
                         Expected Outcome
                       </label>
                       <Input
@@ -510,7 +643,7 @@ export default function TroubleshootingGuidesPage() {
                     </div>
                     
                     <div className="grid grid-cols-4 items-center gap-4">
-                      <label className="text-right text-sm">
+                      <label className="text-right font-medium">
                         Time to Resolve
                       </label>
                       <Input
@@ -520,38 +653,22 @@ export default function TroubleshootingGuidesPage() {
                         placeholder="e.g., 30 minutes, 1-2 hours"
                       />
                     </div>
-                    
-                    {isEditMode && (
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <label className="text-right text-sm">
-                          Success Rate
-                        </label>
-                        <div className="col-span-3 flex items-center">
-                          <Input
-                            type="number"
-                            min="0"
-                            max="100"
-                            value={solution.successRate || 0}
-                            onChange={(e) => handleSolutionChange(index, 'successRate', parseFloat(e.target.value))}
-                            className="w-24"
-                          />
-                          <span className="ml-2">%</span>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               ))}
               
-              <Button variant="outline" onClick={handleAddSolution} className="w-full">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleAddSolution}
+              >
                 Add Another Solution
               </Button>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsFormOpen(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button>
             <Button onClick={isEditMode ? handleUpdateGuide : handleCreateGuide}>
               {isEditMode ? 'Update' : 'Create'}
             </Button>
@@ -559,7 +676,6 @@ export default function TroubleshootingGuidesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Guide Detail Dialog */}
       <Dialog open={isGuideDetailOpen} onOpenChange={setIsGuideDetailOpen}>
         <DialogContent className="sm:max-w-[700px]">
           {selectedGuide && (
@@ -619,6 +735,39 @@ export default function TroubleshootingGuidesPage() {
                               ))}
                             </ol>
                             
+                            {/* Display solution images */}
+                            {(() => {
+                              console.log(`Rendering solution ${index} images:`, solution.images);
+                              return null;
+                            })()}
+                            {solution.images && solution.images.length > 0 ? (
+                              <div className="mb-4">
+                                <h4 className="font-medium mb-2">Images ({solution.images.length}):</h4>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                  {solution.images.map((imageUrl, imgIndex) => {
+                                    console.log(`Image ${imgIndex} URL:`, imageUrl);
+                                    return (
+                                      <a 
+                                        key={imgIndex} 
+                                        href={imageUrl} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="block border rounded p-1"
+                                      >
+                                        <img 
+                                          src={imageUrl} 
+                                          alt={`Solution ${index + 1} image ${imgIndex + 1}`}
+                                          className="w-full h-32 object-cover rounded"
+                                        />
+                                      </a>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="mb-4 text-gray-500">No images available</div>
+                            )}
+                            
                             <div className="mb-4">
                               <h4 className="font-medium mb-1">Expected Outcome:</h4>
                               <p className="text-gray-700 dark:text-gray-300">{solution.expectedOutcome}</p>
@@ -664,9 +813,7 @@ export default function TroubleshootingGuidesPage() {
                   </div>
                   <div className="flex items-center">
                     <Clock className="h-3 w-3 mr-1" />
-                    Last updated {selectedGuide.updatedAt instanceof Date 
-                      ? selectedGuide.updatedAt.toLocaleDateString()
-                      : (selectedGuide.updatedAt as any).toDate().toLocaleDateString()}
+                    Last updated {formatDate(selectedGuide.updatedAt)}
                   </div>
                 </div>
               </div>

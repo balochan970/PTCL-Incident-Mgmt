@@ -9,6 +9,7 @@ import NavBar from '../components/NavBar';
 import { collection, addDoc, doc, getDoc, updateDoc, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebaseConfig';
 import { createIncident, IncidentData } from '../services/incidentService';
+import { showNotification } from '../components/CustomNotification';
 
 // Dynamic data for dropdowns
 const exchanges = [
@@ -215,7 +216,7 @@ export default function MultipleFaults() {
 
     // Validate that at least one fault is added
     if (faults.length === 0) {
-      alert('Please add at least one fault');
+      showNotification('Please add at least one fault', { variant: 'warning' });
       return;
     }
 
@@ -283,16 +284,20 @@ export default function MultipleFaults() {
       }
 
       setIncidentOutput(formattedMessage);
-      alert('Multiple Faults Incidents Created Successfully!');
-
-      // Clear form
+      
+      // Show success message
+      showNotification('Multiple Faults Incidents Created Successfully!', { variant: 'success' });
+      
+      // Clear form for new entry
       setFaults([]);
       setShowExtraNodes(false);
+      setExchangeName('');
+      setSelectedStakeholders([]);
       
     } catch (error) {
-      console.error('Error:', error);
-      setSubmissionError('Error submitting the form. Please try again.');
-      alert('Error submitting the form');
+      console.error('Error submitting the form:', error);
+      setSubmissionError('There was an error submitting the form. Please try again.');
+      showNotification('Error submitting the form', { variant: 'error' });
     } finally {
       setIsSubmitting(false);
       // Re-enable the submit button
@@ -715,7 +720,10 @@ export default function MultipleFaults() {
               
               <div className="actions-container">
                 <button
-                  onClick={() => navigator.clipboard.writeText(incidentOutput)}
+                  onClick={() => {
+                    navigator.clipboard.writeText(incidentOutput);
+                    showNotification('Copied to clipboard!', { variant: 'success' });
+                  }}
                   className="btn btn-copy"
                 >
                   <span>📋</span> Copy to Clipboard

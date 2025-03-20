@@ -3,7 +3,9 @@
 "use client";
 import '../styles/globals.css';
 import Link from 'next/link';
-import React, { useState, ChangeEvent, FormEvent, useRef } from 'react';
+import React, { useState, ChangeEvent, FormEvent, useRef, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { showNotification } from '../components/CustomNotification';
 
 import * as XLSX from 'xlsx';
 import { doc, updateDoc, getDoc, Firestore, collection, addDoc, runTransaction } from 'firebase/firestore';
@@ -251,13 +253,13 @@ export default function SingleFaultPage() {
       if (showTicketGeneratorInMessage) {
         formattedMessage += `\nTicket Generator: ${ticketGenerator}`;
       }
-      formattedMessage += `\n\nTicket # ${nextIncidentNumber}`;
+      formattedMessage += `\nTicket # ${nextIncidentNumber}`;
 
       // Update the incident output state
       setIncidentOutput(formattedMessage);
 
-      // Display "Incident Created" message
-      alert('Incident Created Successfully!');
+      // Show success message
+      showNotification('Incident Created Successfully!', { variant: 'success' });
       
       // Clear form fields
       setExchangeName('');
@@ -271,7 +273,7 @@ export default function SingleFaultPage() {
     } catch (error) {
       console.error('Error submitting the form:', error);
       setSubmissionError('There was an error submitting the form. Please try again.');
-      alert('There was an error submitting the form.');
+      showNotification('There was an error submitting the form.', { variant: 'error' });
     } finally {
       setIsSubmitting(false);
       // Re-enable the submit button
@@ -687,7 +689,10 @@ export default function SingleFaultPage() {
               
               <div className="actions-container">
                 <button
-                  onClick={() => navigator.clipboard.writeText(incidentOutput)}
+                  onClick={() => {
+                    navigator.clipboard.writeText(incidentOutput);
+                    showNotification('Copied to clipboard!', { variant: 'success' });
+                  }}
                   className="btn btn-copy"
                 >
                   <span>📋</span> Copy to Clipboard

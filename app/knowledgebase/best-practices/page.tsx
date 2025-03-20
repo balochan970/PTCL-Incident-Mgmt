@@ -1,7 +1,6 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebaseConfig';
+import React, { useState, useEffect, useRef } from 'react';
+import { Timestamp } from 'firebase/firestore';
 import NavBar from '@/app/components/NavBar';
 import { BestPractice } from '../types';
 import { useToast } from "@/components/ui/use-toast";
@@ -12,7 +11,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Plus, Edit, Trash2, Star, Clock, User, AlertCircle, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Star, Clock, User, AlertCircle, ThumbsUp, ThumbsDown, Image, Upload, X } from 'lucide-react';
+import { bestPracticesService } from '@/lib/supabaseServices';
+import { uploadImage } from '@/lib/supabaseImageService';
 
 // Define categories for best practices
 const CATEGORIES = [
@@ -31,18 +32,22 @@ export default function BestPracticesPage() {
   const [filteredPractices, setFilteredPractices] = useState<BestPractice[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentPractice, setCurrentPractice] = useState<BestPractice | null>(null);
   const [selectedPractice, setSelectedPractice] = useState<BestPractice | null>(null);
   const [isPracticeDetailOpen, setIsPracticeDetailOpen] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Form state
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('Network Configuration');
-  const [content, setContent] = useState('');
-  const [examples, setExamples] = useState('');
+  const [category, setCategory] = useState('');
+  const [description, setDescription] = useState('');
+  const [recommendations, setRecommendations] = useState('');
+  const [benefitsAndOutcomes, setBenefitsAndOutcomes] = useState('');
   
   const { toast } = useToast();
 
@@ -57,27 +62,7 @@ export default function BestPracticesPage() {
   const fetchPractices = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, 'bestPractices'), orderBy('createdAt', 'desc'));
-      const querySnapshot = await getDocs(q);
-      
-      const fetchedPractices: BestPractice[] = [];
-      
-      querySnapshot.forEach((doc) => {
-        const data = doc.data() as Omit<BestPractice, 'id'>;
-        const practice: BestPractice = {
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt instanceof Timestamp 
-            ? data.createdAt.toDate() 
-            : (data.createdAt || new Date()),
-          updatedAt: data.updatedAt instanceof Timestamp
-            ? data.updatedAt.toDate()
-            : (data.updatedAt || new Date()),
-        };
-        
-        fetchedPractices.push(practice);
-      });
-      
+      const fetchedPractices = await bestPracticesService.getAll();
       setPractices(fetchedPractices);
       setFilteredPractices(fetchedPractices);
     } catch (error) {
@@ -93,43 +78,101 @@ export default function BestPracticesPage() {
   };
 
   const filterPractices = () => {
+    if (!practices.length) return;
+    
     let filtered = [...practices];
     
     // Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(practice => 
-        practice.title.toLowerCase().includes(query) || 
-        practice.content.toLowerCase().includes(query) || 
-        practice.examples.some(example => example.toLowerCase().includes(query))
+        practice.title.toLowerCase().includes(query) ||
+        practice.description.toLowerCase().includes(query) ||
+        practice.recommendations.some(rec => rec.toLowerCase().includes(query))
       );
     }
     
     // Filter by category
-    if (selectedCategory !== 'All') {
-      filtered = filtered.filter(practice => practice.category === selectedCategory);
+    if (selectedCategory && selectedCategory !== 'all') {
+      filtered = filtered.filter(practice => 
+        practice.category.toLowerCase() === selectedCategory.toLowerCase()
+      );
     }
     
     setFilteredPractices(filtered);
   };
 
+  const handleImageUpload = async () => {
+    if (!fileInputRef.current?.files || fileInputRef.current.files.length === 0) return;
+    
+    const file = fileInputRef.current.files[0];
+    setUploadingImage(true);
+    
+    try {
+      // Check file size limit (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Error",
+          description: "Image size exceeds 5MB limit. Please use a smaller image.",
+          variant: "destructive",
+        });
+        setUploadingImage(false);
+        return;
+      }
+      
+      // Upload the image to Supabase
+      const imageUrl = await uploadImage(file);
+      
+      // Add the image URL to the uploadedImages array
+      setUploadedImages(prev => [...prev, imageUrl]);
+      
+      toast({
+        title: "Success",
+        description: "Image uploaded successfully",
+      });
+      
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload image",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setUploadedImages(prev => prev.filter((_, i) => i !== index));
+    toast({
+      title: "Success",
+      description: "Image removed successfully",
+    });
+  };
+
   const handleCreatePractice = async () => {
     try {
-      const examplesArray = examples.split('\n').map(e => e.trim()).filter(e => e);
+      const recommendationsArray = recommendations.split('\n').map(s => s.trim()).filter(s => s);
+      const benefitsArray = benefitsAndOutcomes.split('\n').map(s => s.trim()).filter(s => s);
       
-      const newPractice = {
+      const newPractice: Omit<BestPractice, 'id' | 'createdAt' | 'updatedAt'> = {
         title,
         category,
-        content,
-        examples: examplesArray,
-        author: JSON.parse(localStorage.getItem('auth') || '{}').username || 'Unknown',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        rating: 0,
-        ratingCount: 0
+        description,
+        recommendations: recommendationsArray,
+        benefitsAndOutcomes: benefitsArray,
+        author: 'Current User', // Replace with actual user info
+        likes: 0,
+        dislikes: 0,
+        imageUrls: uploadedImages
       };
       
-      await addDoc(collection(db, 'bestPractices'), newPractice);
+      await bestPracticesService.create(newPractice);
       
       toast({
         title: "Success",
@@ -153,17 +196,20 @@ export default function BestPracticesPage() {
     if (!currentPractice) return;
     
     try {
-      const examplesArray = examples.split('\n').map(e => e.trim()).filter(e => e);
+      const recommendationsArray = recommendations.split('\n').map(s => s.trim()).filter(s => s);
+      const benefitsArray = benefitsAndOutcomes.split('\n').map(s => s.trim()).filter(s => s);
       
-      const updatedPractice = {
+      const updatedPractice: Partial<BestPractice> = {
         title,
         category,
-        content,
-        examples: examplesArray,
-        updatedAt: serverTimestamp(),
+        description,
+        recommendations: recommendationsArray,
+        benefitsAndOutcomes: benefitsArray,
+        imageUrls: uploadedImages,
+        updatedAt: new Date()
       };
       
-      await updateDoc(doc(db, 'bestPractices', currentPractice.id), updatedPractice);
+      await bestPracticesService.update(currentPractice.id, updatedPractice);
       
       toast({
         title: "Success",
@@ -173,6 +219,7 @@ export default function BestPracticesPage() {
       resetForm();
       setIsFormOpen(false);
       setIsEditMode(false);
+      setCurrentPractice(null);
       fetchPractices();
     } catch (error) {
       console.error('Error updating best practice:', error);
@@ -185,24 +232,27 @@ export default function BestPracticesPage() {
   };
 
   const handleDeletePractice = async (id: string) => {
-    if (confirm('Are you sure you want to delete this best practice?')) {
-      try {
-        await deleteDoc(doc(db, 'bestPractices', id));
-        
-        toast({
-          title: "Success",
-          description: "Best practice deleted successfully",
-        });
-        
-        fetchPractices();
-      } catch (error) {
-        console.error('Error deleting best practice:', error);
-        toast({
-          title: "Error",
-          description: "Failed to delete best practice",
-          variant: "destructive",
-        });
+    try {
+      await bestPracticesService.delete(id);
+      
+      toast({
+        title: "Success",
+        description: "Best practice deleted successfully",
+      });
+      
+      fetchPractices();
+      
+      if (selectedPractice && selectedPractice.id === id) {
+        setSelectedPractice(null);
+        setIsPracticeDetailOpen(false);
       }
+    } catch (error) {
+      console.error('Error deleting best practice:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete best practice",
+        variant: "destructive",
+      });
     }
   };
 
@@ -210,8 +260,10 @@ export default function BestPracticesPage() {
     setCurrentPractice(practice);
     setTitle(practice.title);
     setCategory(practice.category);
-    setContent(practice.content);
-    setExamples(practice.examples.join('\n'));
+    setDescription(practice.description);
+    setRecommendations(practice.recommendations.join('\n'));
+    setBenefitsAndOutcomes(practice.benefitsAndOutcomes.join('\n'));
+    setUploadedImages(practice.imageUrls || []);
     setIsEditMode(true);
     setIsFormOpen(true);
   };
@@ -221,37 +273,38 @@ export default function BestPracticesPage() {
     setIsPracticeDetailOpen(true);
   };
 
-  const handleRatePractice = async (practiceId: string, isHelpful: boolean) => {
+  const handleRatePractice = async (practiceId: string, isLike: boolean) => {
     try {
-      const practiceRef = doc(db, 'bestPractices', practiceId);
       const practice = practices.find(p => p.id === practiceId);
-      
       if (!practice) return;
       
-      const currentRating = practice.rating || 0;
-      const currentCount = practice.ratingCount || 0;
+      const updatedPractice: Partial<BestPractice> = {
+        likes: (practice.likes || 0) + (isLike ? 1 : 0),
+        dislikes: (practice.dislikes || 0) + (isLike ? 0 : 1)
+      };
       
-      // Simple weighted average calculation
-      const newRating = isHelpful 
-        ? Math.min(5, currentRating + (5 - currentRating) / (currentCount + 1))
-        : Math.max(1, currentRating - currentRating / (currentCount + 5));
-      
-      await updateDoc(practiceRef, {
-        rating: parseFloat(newRating.toFixed(1)),
-        ratingCount: (practice.ratingCount || 0) + 1
-      });
+      await bestPracticesService.update(practiceId, updatedPractice);
       
       toast({
-        title: "Thank you!",
-        description: "Your feedback helps improve our best practices",
+        title: "Thank You",
+        description: "Your feedback has been recorded.",
       });
       
       fetchPractices();
+      
+      if (selectedPractice && selectedPractice.id === practiceId) {
+        const updatedSelectedPractice = {
+          ...selectedPractice,
+          likes: (selectedPractice.likes || 0) + (isLike ? 1 : 0),
+          dislikes: (selectedPractice.dislikes || 0) + (isLike ? 0 : 1)
+        };
+        setSelectedPractice(updatedSelectedPractice);
+      }
     } catch (error) {
       console.error('Error rating practice:', error);
       toast({
         title: "Error",
-        description: "Failed to submit rating",
+        description: "Failed to submit your rating",
         variant: "destructive",
       });
     }
@@ -259,11 +312,29 @@ export default function BestPracticesPage() {
 
   const resetForm = () => {
     setTitle('');
-    setCategory('Network Configuration');
-    setContent('');
-    setExamples('');
+    setCategory('');
+    setDescription('');
+    setRecommendations('');
+    setBenefitsAndOutcomes('');
+    setUploadedImages([]);
     setCurrentPractice(null);
   };
+
+  const formatDate = (date: Date | Timestamp) => {
+    if (date instanceof Timestamp) {
+      date = date.toDate();
+    }
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  };
+
+  // Get unique categories from practices
+  const categories = ['all', ...new Set(practices.map(practice => practice.category))];
 
   // Render star rating
   const renderStars = (rating: number) => {
@@ -271,14 +342,17 @@ export default function BestPracticesPage() {
     const fullStars = Math.floor(rating);
     const hasHalfStar = rating % 1 >= 0.5;
     
-    for (let i = 1; i <= 5; i++) {
-      if (i <= fullStars) {
-        stars.push(<Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />);
-      } else if (i === fullStars + 1 && hasHalfStar) {
-        stars.push(<Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400 half-filled" />);
-      } else {
-        stars.push(<Star key={i} className="h-4 w-4 text-gray-300" />);
-      }
+    for (let i = 0; i < fullStars; i++) {
+      stars.push(<Star key={`star-${i}`} className="h-4 w-4 fill-yellow-400 text-yellow-400" />);
+    }
+    
+    if (hasHalfStar) {
+      stars.push(<Star key="half-star" className="h-4 w-4 fill-yellow-400 text-yellow-400 half-filled" />);
+    }
+    
+    const emptyStars = 5 - stars.length;
+    for (let i = 0; i < emptyStars; i++) {
+      stars.push(<Star key={`empty-${i}`} className="h-4 w-4 text-gray-300" />);
     }
     
     return <div className="flex">{stars}</div>;
@@ -288,6 +362,15 @@ export default function BestPracticesPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <NavBar />
       <div className="container mx-auto px-4 py-8">
+        {/* Hidden file input for image uploads */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          accept="image/*"
+          onChange={handleImageUpload}
+        />
+        
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Best Practices</h1>
           <Button onClick={() => { resetForm(); setIsFormOpen(true); setIsEditMode(false); }}>
@@ -340,42 +423,82 @@ export default function BestPracticesPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredPractices.map((practice) => (
-              <Card key={practice.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-3">
+              <Card key={practice.id} className="mb-4 hover:shadow-md transition-shadow">
+                <CardHeader className="pb-2">
                   <div className="flex justify-between items-start">
-                    <CardTitle className="text-xl">{practice.title}</CardTitle>
-                    <div className="flex space-x-1">
-                      <Button variant="ghost" size="icon" onClick={() => handleEditPractice(practice)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeletePractice(practice.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <CardTitle className="text-lg font-semibold">{practice.title}</CardTitle>
+                    <Badge variant="secondary">{practice.category}</Badge>
                   </div>
-                  <CardDescription className="flex flex-col gap-1">
-                    <Badge variant="outline">{practice.category}</Badge>
-                    {(practice.rating ?? 0) > 0 && (
-                      <div className="flex items-center mt-1">
-                        {renderStars(practice.rating ?? 0)}
-                        <span className="text-xs ml-1 text-gray-500">({practice.ratingCount ?? 0})</span>
+                  <CardDescription className="flex items-center text-xs space-x-2">
+                    <div className="flex items-center">
+                      <User className="h-3 w-3 mr-1" />
+                      {practice.author}
+                    </div>
+                    <div className="flex items-center">
+                      <Clock className="h-3 w-3 mr-1" />
+                      {formatDate(practice.updatedAt)}
+                    </div>
+                    <div className="flex items-center">
+                      <div className="flex">
+                        <ThumbsUp className="h-3 w-3 mr-1" />
+                        <span>{practice.likes || 0}</span>
                       </div>
-                    )}
+                      <div className="flex ml-2">
+                        <ThumbsDown className="h-3 w-3 mr-1" />
+                        <span>{practice.dislikes || 0}</span>
+                      </div>
+                    </div>
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-3">
-                    {practice.content}
-                  </p>
-                </CardContent>
-                <CardFooter className="pt-2 border-t flex justify-between items-center">
-                  <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-                    <User className="h-3 w-3 mr-1" />
-                    {practice.author}
+                <CardContent className="text-sm pb-2">
+                  <div className="line-clamp-3">
+                    {practice.description}
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => handleViewPractice(practice)}>
+                  {practice.recommendations?.length > 0 && (
+                    <div className="mt-2">
+                      <p className="font-medium text-xs">Recommendations:</p>
+                      <ul className="list-disc list-inside text-xs pl-2 line-clamp-2">
+                        {practice.recommendations.slice(0, 2).map((rec, idx) => (
+                          <li key={idx}>{rec}</li>
+                        ))}
+                        {practice.recommendations.length > 2 && (
+                          <li className="text-muted-foreground">And {practice.recommendations.length - 2} more...</li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </CardContent>
+                <CardFooter className="flex justify-between pt-1">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleViewPractice(practice)}
+                  >
                     View Details
                   </Button>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditPractice(practice);
+                      }}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeletePractice(practice.id);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </CardFooter>
               </Card>
             ))}
@@ -428,24 +551,80 @@ export default function BestPracticesPage() {
               </label>
               <Textarea
                 id="content"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
                 className="col-span-3"
                 rows={8}
                 placeholder="Describe the best practice in detail..."
               />
             </div>
+            
+            {/* Image upload section */}
+            <div className="grid grid-cols-4 items-start gap-4">
+              <label className="text-right pt-2">
+                Images
+              </label>
+              <div className="col-span-3">
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  className="mb-2" 
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingImage}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  {uploadingImage ? 'Uploading...' : 'Add Image'}
+                </Button>
+                
+                {/* Display uploaded images */}
+                {uploadedImages.length > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
+                    {uploadedImages.map((imageUrl, index) => (
+                      <div key={index} className="relative group border rounded p-1">
+                        <img 
+                          src={imageUrl} 
+                          alt={`Image ${index + 1}`}
+                          className="w-full h-32 object-cover rounded"
+                        />
+                        <button
+                          type="button"
+                          className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleRemoveImage(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            
             <div className="grid grid-cols-4 items-start gap-4">
               <label htmlFor="examples" className="text-right pt-2">
-                Examples
+                Recommendations
               </label>
               <Textarea
                 id="examples"
-                value={examples}
-                onChange={(e) => setExamples(e.target.value)}
+                value={recommendations}
+                onChange={(e) => setRecommendations(e.target.value)}
                 className="col-span-3"
                 rows={5}
-                placeholder="List examples, one per line"
+                placeholder="List recommendations, one per line"
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-start gap-4">
+              <label htmlFor="benefits" className="text-right pt-2">
+                Benefits & Outcomes
+              </label>
+              <Textarea
+                id="benefits"
+                value={benefitsAndOutcomes}
+                onChange={(e) => setBenefitsAndOutcomes(e.target.value)}
+                className="col-span-3"
+                rows={5}
+                placeholder="List benefits and outcomes, one per line"
               />
             </div>
           </div>
@@ -466,67 +645,127 @@ export default function BestPracticesPage() {
           {selectedPractice && (
             <>
               <DialogHeader>
-                <DialogTitle>{selectedPractice.title}</DialogTitle>
+                <DialogTitle className="flex justify-between items-center">
+                  <span>{selectedPractice.title}</span>
+                  <Badge variant="secondary">{selectedPractice.category}</Badge>
+                </DialogTitle>
                 <DialogDescription>
-                  <div className="flex flex-col gap-2 mt-2">
-                    <Badge variant="outline">{selectedPractice.category}</Badge>
-                    {(selectedPractice.rating ?? 0) > 0 && (
-                      <div className="flex items-center mt-1">
-                        {renderStars(selectedPractice.rating ?? 0)}
-                        <span className="text-xs ml-1 text-gray-500">
-                          ({selectedPractice.ratingCount ?? 0} {(selectedPractice.ratingCount ?? 0) === 1 ? 'rating' : 'ratings'})
-                        </span>
+                  <div className="flex items-center text-xs space-x-2 mt-1">
+                    <div className="flex items-center">
+                      <User className="h-3 w-3 mr-1" />
+                      {selectedPractice.author}
+                    </div>
+                    <div className="flex items-center">
+                      <Clock className="h-3 w-3 mr-1" />
+                      Last updated {formatDate(selectedPractice.updatedAt)}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="flex items-center">
+                        <ThumbsUp className="h-3 w-3 mr-1" />
+                        <span>{selectedPractice.likes || 0}</span>
                       </div>
-                    )}
+                      <div className="flex items-center">
+                        <ThumbsDown className="h-3 w-3 mr-1" />
+                        <span>{selectedPractice.dislikes || 0}</span>
+                      </div>
+                    </div>
                   </div>
                 </DialogDescription>
               </DialogHeader>
-              
-              <div className="max-h-[70vh] overflow-y-auto pr-2">
+              <div className="p-6 pt-2">
                 <div className="mb-6">
-                  <h3 className="text-lg font-medium mb-2">Description</h3>
-                  <div className="text-gray-700 dark:text-gray-300 whitespace-pre-line">
-                    {selectedPractice.content}
+                  <h3 className="text-md font-semibold mb-2">Description</h3>
+                  <div className="prose prose-sm max-w-none">
+                    {selectedPractice.description}
                   </div>
                 </div>
                 
+                {/* Display images */}
+                {selectedPractice.imageUrls && selectedPractice.imageUrls.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-md font-semibold mb-2">Images</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {selectedPractice.imageUrls.map((imageUrl, index) => (
+                        <a 
+                          key={index} 
+                          href={imageUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="block border rounded p-1 hover:opacity-90 transition-opacity"
+                        >
+                          <img 
+                            src={imageUrl} 
+                            alt={`Image ${index + 1}`}
+                            className="w-full h-40 object-cover rounded"
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 <div className="mb-6">
-                  <h3 className="text-lg font-medium mb-2">Examples</h3>
-                  <ul className="list-disc pl-5 space-y-2">
-                    {selectedPractice.examples.map((example, index) => (
-                      <li key={index} className="text-gray-700 dark:text-gray-300">{example}</li>
+                  <h3 className="text-md font-semibold mb-2">Recommendations</h3>
+                  <ul className="list-disc list-inside space-y-1">
+                    {selectedPractice.recommendations.map((rec, index) => (
+                      <li key={index} className="pl-2">{rec}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="mb-6">
+                  <h3 className="text-md font-semibold mb-2">Benefits & Outcomes</h3>
+                  <ul className="list-disc list-inside space-y-1">
+                    {selectedPractice.benefitsAndOutcomes.map((outcome, index) => (
+                      <li key={index} className="pl-2">{outcome}</li>
                     ))}
                   </ul>
                 </div>
                 
-                <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <h3 className="text-lg font-medium mb-2">Was this best practice helpful?</h3>
-                  <div className="flex space-x-2">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => handleRatePractice(selectedPractice.id, true)}
-                    >
-                      <ThumbsUp className="h-4 w-4 mr-1" /> Yes, it was helpful
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => handleRatePractice(selectedPractice.id, false)}
-                    >
-                      <ThumbsDown className="h-4 w-4 mr-1" /> No, needs improvement
-                    </Button>
+                <div className="flex justify-between mt-4">
+                  <div>
+                    <span className="text-sm font-medium">Was this helpful?</span>
+                    <div className="flex space-x-2 mt-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex items-center"
+                        onClick={() => handleRatePractice(selectedPractice.id, true)}
+                      >
+                        <ThumbsUp className="h-3 w-3 mr-1" />
+                        Yes
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex items-center"
+                        onClick={() => handleRatePractice(selectedPractice.id, false)}
+                      >
+                        <ThumbsDown className="h-3 w-3 mr-1" />
+                        No
+                      </Button>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="text-sm text-gray-500 dark:text-gray-400 flex justify-between items-center mt-6 pt-4 border-t">
-                  <div className="flex items-center">
-                    <User className="h-3 w-3 mr-1" />
-                    Created by {selectedPractice.author}
-                  </div>
-                  <div className="flex items-center">
-                    <Clock className="h-3 w-3 mr-1" />
-                    Last updated {selectedPractice.updatedAt instanceof Date 
-                      ? selectedPractice.updatedAt.toLocaleDateString()
-                      : (selectedPractice.updatedAt as any).toDate().toLocaleDateString()}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditPractice(selectedPractice)}
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        handleDeletePractice(selectedPractice.id);
+                        setIsPracticeDetailOpen(false);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete
+                    </Button>
                   </div>
                 </div>
               </div>

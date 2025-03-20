@@ -29,6 +29,7 @@ import { Location } from '@/lib/utils/location';
 import { isUserAdmin } from '@/app/services/authService';
 import { useToast } from "@/components/ui/use-toast";
 import ExportButton from '../components/ExportButton';
+import { showNotification } from '../components/CustomNotification';
 
 // Register ChartJS components
 ChartJS.register(
@@ -1203,11 +1204,11 @@ Thanks to ${selectedThanksTo.join(', ')}`;
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
       .then(() => {
-        alert('Message copied to clipboard');
+        showNotification('Message copied to clipboard', { variant: 'success' });
       })
       .catch(err => {
         console.error('Failed to copy: ', err);
-        alert('Failed to copy to clipboard. Please try again.');
+        showNotification('Failed to copy to clipboard. Please try again.', { variant: 'error' });
       });
   };
 

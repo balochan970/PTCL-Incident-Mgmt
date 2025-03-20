@@ -5,6 +5,7 @@ import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { exportToCSV } from '../utils/exportUtils';
 import * as XLSX from 'xlsx';
+import { showNotification } from '../components/CustomNotification';
 
 interface ExportButtonProps {
   data: any[];
@@ -33,12 +34,14 @@ export default function ExportButton({
     try {
       if (format === 'csv') {
         exportToCSV(data, filename, headers);
+        showNotification(`Exported to CSV successfully`, { variant: 'success' });
       } else if (format === 'xlsx') {
         exportToXLSX(data, filename, headers);
+        showNotification(`Exported to Excel successfully`, { variant: 'success' });
       }
     } catch (error) {
       console.error('Export error:', error);
-      alert('Failed to export data. Please try again.');
+      showNotification('Failed to export data. Please try again.', { variant: 'error' });
     } finally {
       setIsExporting(false);
     }

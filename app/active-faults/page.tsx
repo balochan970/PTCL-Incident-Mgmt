@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import NavBar from '@/app/components/NavBar';
 import { useTheme } from '@/app/contexts/ThemeContext';
 import html2canvas from 'html2canvas';
+import { showNotification } from '@/app/components/CustomNotification';
 
 interface Fault {
   id: string;
@@ -407,36 +408,36 @@ function ActiveFaultsContent() {
             })
           ]);
           
-          // Show success message
-          const successMessage = document.createElement('div');
-          successMessage.className = `fixed bottom-4 right-4 ${theme === 'dark' ? 'bg-green-700' : 'bg-green-500'} text-white px-4 py-2 rounded-lg shadow-lg z-50`;
-          successMessage.textContent = 'Screenshot copied to clipboard!';
-          document.body.appendChild(successMessage);
-          
-          // Remove the success message after 3 seconds
-          setTimeout(() => {
-            document.body.removeChild(successMessage);
-          }, 3000);
+          // Show success message using our new CustomNotification
+          showNotification('Screenshot copied to clipboard!', { variant: 'success' });
         } catch (error) {
           console.error('Error copying to clipboard:', error);
-          alert('Failed to copy to clipboard. Your browser may not support this feature.');
+          showNotification('Failed to copy to clipboard. Your browser may not support this feature.', { variant: 'error' });
         }
       };
       
-      // Create the Download button
-      const downloadButton = document.createElement('button');
-      downloadButton.className = 'px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors';
-      downloadButton.textContent = 'Download';
-      downloadButton.onclick = () => {
+      // Create the Save button
+      const saveButton = document.createElement('button');
+      saveButton.className = 'px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors';
+      saveButton.textContent = 'Save Image';
+      saveButton.onclick = () => {
+        // Create an anchor element
         const link = document.createElement('a');
-        link.download = `active-faults-${activeTab}-${new Date().toISOString().split('T')[0]}.png`;
+        link.download = `active-faults-${new Date().toISOString().split('T')[0]}.png`;
         link.href = imageDataUrl;
+        
+        // Trigger the download
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
+        
+        // Show success message using our new CustomNotification
+        showNotification('Screenshot saved successfully!', { variant: 'success' });
       };
       
       // Add the buttons to the buttons container
       buttonsContainer.appendChild(copyButton);
-      buttonsContainer.appendChild(downloadButton);
+      buttonsContainer.appendChild(saveButton);
       
       // Create keyboard shortcuts info
       const shortcutsInfo = document.createElement('div');
@@ -445,7 +446,7 @@ function ActiveFaultsContent() {
         <div class="flex justify-center gap-6">
           <span><kbd class="px-2 py-1 text-xs ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-300'} border rounded-md">Esc</kbd> Close dialog</span>
           <span><kbd class="px-2 py-1 text-xs ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-300'} border rounded-md">Ctrl+C</kbd> Copy screenshot</span>
-          <span><kbd class="px-2 py-1 text-xs ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-300'} border rounded-md">Ctrl+S</kbd> Download screenshot</span>
+          <span><kbd class="px-2 py-1 text-xs ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-300'} border rounded-md">Ctrl+S</kbd> Save screenshot</span>
         </div>
       `;
       
@@ -496,7 +497,7 @@ function ActiveFaultsContent() {
         // Download on Ctrl+S
         if (event.ctrlKey && event.key === 's') {
           event.preventDefault(); // Prevent default save behavior
-          downloadButton.click(); // Trigger the download button click
+          saveButton.click(); // Trigger the save button click
         }
       };
       
@@ -505,11 +506,11 @@ function ActiveFaultsContent() {
       
       // Add tooltip text for keyboard shortcuts
       copyButton.title = 'Copy to clipboard (Ctrl+C)';
-      downloadButton.title = 'Download (Ctrl+S)';
+      saveButton.title = 'Save screenshot (Ctrl+S)';
       
       // Add keyboard shortcut hints to button labels
       copyButton.innerHTML = 'Copy to Clipboard <span class="text-xs opacity-75 ml-1">(Ctrl+C)</span>';
-      downloadButton.innerHTML = 'Download <span class="text-xs opacity-75 ml-1">(Ctrl+S)</span>';
+      saveButton.innerHTML = 'Save Image <span class="text-xs opacity-75 ml-1">(Ctrl+S)</span>';
       
       // Clean up event listener when modal is closed
       const originalRemoveChild = document.body.removeChild;
@@ -522,7 +523,7 @@ function ActiveFaultsContent() {
       } as any;
     } catch (error) {
       console.error('Error generating screenshot:', error);
-      alert('Failed to generate screenshot. Please try again.');
+      showNotification('Failed to generate screenshot. Please try again.', { variant: 'error' });
     }
   };
 

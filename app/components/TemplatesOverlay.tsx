@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebaseConfig';
+import { showNotification } from './CustomNotification';
 
 // Import the exchanges array
 const exchanges = [
@@ -81,7 +82,7 @@ export default function TemplatesOverlay({ onClose, onApplyTemplate }: Templates
   const handleCreateTemplate = async () => {
     try {
       if (!formData.title) {
-        alert('Template title is required');
+        showNotification('Template title is required', { variant: 'warning' });
         return;
       }
 
@@ -91,7 +92,7 @@ export default function TemplatesOverlay({ onClose, onApplyTemplate }: Templates
       const titleSnapshot = await getDocs(titleQuery);
 
       if (!editingTemplate && !titleSnapshot.empty) {
-        alert('A template with this title already exists');
+        showNotification('A template with this title already exists', { variant: 'warning' });
         return;
       }
 
@@ -110,16 +111,18 @@ export default function TemplatesOverlay({ onClose, onApplyTemplate }: Templates
         // Update existing template
         const templateRef = doc(db, 'faultTemplates', editingTemplate.id);
         await updateDoc(templateRef, templateData);
+        showNotification('Template updated successfully', { variant: 'success' });
       } else {
         // Create new template
         await addDoc(templatesRef, templateData);
+        showNotification('Template created successfully', { variant: 'success' });
       }
 
       await fetchTemplates();
       resetForm();
     } catch (error) {
       console.error('Error saving template:', error);
-      alert('Failed to save template');
+      showNotification('Failed to save template', { variant: 'error' });
     }
   };
 
@@ -131,9 +134,10 @@ export default function TemplatesOverlay({ onClose, onApplyTemplate }: Templates
     try {
       await deleteDoc(doc(db, 'faultTemplates', templateId));
       await fetchTemplates();
+      showNotification('Template deleted successfully', { variant: 'success' });
     } catch (error) {
       console.error('Error deleting template:', error);
-      alert('Failed to delete template');
+      showNotification('Failed to delete template', { variant: 'error' });
     }
   };
 

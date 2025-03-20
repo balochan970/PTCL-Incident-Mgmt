@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { showNotification } from './CustomNotification';
 
 interface Code {
   id: string;
@@ -56,7 +57,7 @@ export default function CodesSection({
 
   const handleCopy = (code: string) => {
     navigator.clipboard.writeText(code);
-    alert('Code copied to clipboard!');
+    showNotification('Code copied to clipboard!', { variant: 'success' });
   };
 
   return (

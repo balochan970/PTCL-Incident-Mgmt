@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { showNotification } from './CustomNotification';
 
 interface Credential {
   id: string;
@@ -71,6 +72,7 @@ export default function CredentialsSection({
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
+    showNotification('Credential copied to clipboard!', { variant: 'success' });
   };
 
   return (

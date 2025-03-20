@@ -1,7 +1,6 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebaseConfig';
+import React, { useState, useEffect, useRef } from 'react';
+import { Timestamp } from 'firebase/firestore';
 import NavBar from '@/app/components/NavBar';
 import { Documentation } from '../types';
 import { useToast } from "@/components/ui/use-toast";
@@ -12,7 +11,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Plus, Edit, Trash2, Clock, User, AlertCircle, FileText, Tag, History } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Clock, User, AlertCircle, FileText, Tag, History, Upload, X } from 'lucide-react';
+import { documentationService } from '@/lib/supabaseServices';
+import { uploadImage } from '@/lib/supabaseImageService';
 
 // Define categories for documentation
 const CATEGORIES = [
@@ -38,6 +39,8 @@ export default function DocumentationPage() {
   const [isDocumentDetailOpen, setIsDocumentDetailOpen] = useState(false);
   const [versionHistory, setVersionHistory] = useState<Documentation[]>([]);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   
   // Form state
   const [title, setTitle] = useState('');
@@ -60,27 +63,7 @@ export default function DocumentationPage() {
   const fetchDocuments = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, 'documentation'), orderBy('updatedAt', 'desc'));
-      const querySnapshot = await getDocs(q);
-      
-      const fetchedDocuments: Documentation[] = [];
-      
-      querySnapshot.forEach((doc) => {
-        const data = doc.data() as Omit<Documentation, 'id'>;
-        const document: Documentation = {
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt instanceof Timestamp 
-            ? data.createdAt.toDate() 
-            : (data.createdAt || new Date()),
-          updatedAt: data.updatedAt instanceof Timestamp
-            ? data.updatedAt.toDate()
-            : (data.updatedAt || new Date()),
-        };
-        
-        fetchedDocuments.push(document);
-      });
-      
+      const fetchedDocuments = await documentationService.getAll();
       setDocuments(fetchedDocuments);
       setFilteredDocuments(fetchedDocuments);
     } catch (error) {
@@ -101,16 +84,16 @@ export default function DocumentationPage() {
     // Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(document => 
-        document.title.toLowerCase().includes(query) || 
-        document.content.toLowerCase().includes(query) || 
-        document.tags.some(tag => tag.toLowerCase().includes(query))
+      filtered = filtered.filter(doc => 
+        doc.title.toLowerCase().includes(query) ||
+        doc.content.toLowerCase().includes(query) ||
+        doc.tags.some(tag => tag.toLowerCase().includes(query))
       );
     }
     
     // Filter by category
     if (selectedCategory !== 'All') {
-      filtered = filtered.filter(document => document.category === selectedCategory);
+      filtered = filtered.filter(doc => doc.category === selectedCategory);
     }
     
     setFilteredDocuments(filtered);
@@ -118,22 +101,21 @@ export default function DocumentationPage() {
 
   const handleCreateDocument = async () => {
     try {
-      const tagsArray = tags.split(',').map(t => t.trim()).filter(t => t);
+      const tagsArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
       const attachmentsArray = attachments ? attachments.split('\n').map(a => a.trim()).filter(a => a) : [];
       
-      const newDocument = {
+      const newDocument: Omit<Documentation, 'id' | 'createdAt' | 'updatedAt'> = {
         title,
         content,
         category,
         tags: tagsArray,
-        author: JSON.parse(localStorage.getItem('auth') || '{}').username || 'Unknown',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
         version,
-        attachments: attachmentsArray
+        author: 'Current User', // Use actual user info in production
+        attachments: attachmentsArray,
+        imageUrls: uploadedImages,
       };
       
-      await addDoc(collection(db, 'documentation'), newDocument);
+      await documentationService.create(newDocument);
       
       toast({
         title: "Success",
@@ -157,40 +139,21 @@ export default function DocumentationPage() {
     if (!currentDocument) return;
     
     try {
-      const tagsArray = tags.split(',').map(t => t.trim()).filter(t => t);
+      const tagsArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
       const attachmentsArray = attachments ? attachments.split('\n').map(a => a.trim()).filter(a => a) : [];
       
-      // Create a version history record
-      const versionHistoryRecord = {
-        ...currentDocument,
-        parentId: currentDocument.id,
-        isVersionHistory: true,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-      
-      // Create a version history record, excluding the id instead of deleting it
-      const { id, ...versionHistoryWithoutId } = versionHistoryRecord;
-      
-      // Save the current version to history
-      await addDoc(collection(db, 'documentationHistory'), versionHistoryWithoutId);
-      
-      // Increment version number
-      const versionParts = version.split('.');
-      const minorVersion = parseInt(versionParts[1] || '0') + 1;
-      const newVersion = `${versionParts[0]}.${minorVersion}`;
-      
-      const updatedDocument = {
+      const updatedDocument: Partial<Documentation> = {
         title,
         content,
         category,
         tags: tagsArray,
-        updatedAt: serverTimestamp(),
-        version: newVersion,
-        attachments: attachmentsArray
+        version,
+        attachments: attachmentsArray,
+        imageUrls: uploadedImages,
+        updatedAt: new Date()
       };
       
-      await updateDoc(doc(db, 'documentation', currentDocument.id), updatedDocument);
+      await documentationService.update(currentDocument.id, updatedDocument);
       
       toast({
         title: "Success",
@@ -200,6 +163,7 @@ export default function DocumentationPage() {
       resetForm();
       setIsFormOpen(false);
       setIsEditMode(false);
+      setCurrentDocument(null);
       fetchDocuments();
     } catch (error) {
       console.error('Error updating document:', error);
@@ -212,24 +176,26 @@ export default function DocumentationPage() {
   };
 
   const handleDeleteDocument = async (id: string) => {
-    if (confirm('Are you sure you want to delete this documentation?')) {
-      try {
-        await deleteDoc(doc(db, 'documentation', id));
-        
-        toast({
-          title: "Success",
-          description: "Documentation deleted successfully",
-        });
-        
-        fetchDocuments();
-      } catch (error) {
-        console.error('Error deleting document:', error);
-        toast({
-          title: "Error",
-          description: "Failed to delete documentation",
-          variant: "destructive",
-        });
+    try {
+      await documentationService.delete(id);
+      
+      toast({
+        title: "Success",
+        description: "Document deleted successfully",
+      });
+      
+      fetchDocuments();
+      if (selectedDocument && selectedDocument.id === id) {
+        setSelectedDocument(null);
+        setIsDocumentDetailOpen(false);
       }
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete document",
+        variant: "destructive",
+      });
     }
   };
 
@@ -241,6 +207,7 @@ export default function DocumentationPage() {
     setTags(document.tags.join(', '));
     setVersion(document.version);
     setAttachments(document.attachments ? document.attachments.join('\n') : '');
+    setUploadedImages(document.imageUrls || []);
     setIsEditMode(true);
     setIsFormOpen(true);
   };
@@ -248,48 +215,143 @@ export default function DocumentationPage() {
   const handleViewDocument = (document: Documentation) => {
     setSelectedDocument(document);
     setIsDocumentDetailOpen(true);
-    fetchVersionHistory(document.id);
+    
+    if (document.id) {
+      handleViewVersionHistory(document.id);
+    }
   };
 
-  const fetchVersionHistory = async (documentId: string) => {
+  const handleViewVersionHistory = async (documentId: string) => {
     try {
-      const q = query(
-        collection(db, 'documentationHistory'), 
-        // where('parentId', '==', documentId),
-        orderBy('updatedAt', 'desc')
-      );
-      
-      const querySnapshot = await getDocs(q);
-      
-      const history: Documentation[] = [];
-      
-      querySnapshot.forEach((doc) => {
-        const data = doc.data() as Documentation;
-        if (data.parentId === documentId) {
-          // Extract id from data to avoid duplicate
-          const { id: dataId, ...restOfData } = data;
-          history.push({
-            id: doc.id,
-            ...restOfData,
-            createdAt: data.createdAt instanceof Timestamp 
-              ? data.createdAt.toDate() 
-              : (data.createdAt || new Date()),
-            updatedAt: data.updatedAt instanceof Timestamp
-              ? data.updatedAt.toDate()
-              : (data.updatedAt || new Date()),
-          });
-        }
+      toast({
+        title: "Version History",
+        description: "Version history functionality is not available in the Supabase implementation yet.",
       });
-      
-      setVersionHistory(history);
     } catch (error) {
       console.error('Error fetching version history:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch version history",
+        description: "Failed to fetch version history.",
         variant: "destructive",
       });
     }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    
+    const file = e.target.files[0];
+    setUploadingImage(true);
+    
+    try {
+      // Check file size limit (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Error",
+          description: "Image size exceeds 5MB limit. Please use a smaller image.",
+          variant: "destructive",
+        });
+        setUploadingImage(false);
+        return;
+      }
+      
+      // Downscale image before upload
+      const downscaledImage = await downscaleImage(file);
+      
+      // Upload the downscaled image
+      const uploadResult = await uploadImage(downscaledImage);
+      
+      // Add the image URL to the uploadedImages array
+      setUploadedImages(prev => [...prev, uploadResult]);
+      
+      // Also insert the image URL into the content for backward compatibility
+      const imageMarkdown = `\n![${file.name}](${uploadResult})\n`;
+      setContent(prevContent => prevContent + imageMarkdown);
+      
+      toast({
+        title: "Success",
+        description: "Image uploaded and inserted",
+      });
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload image",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setUploadedImages(prev => prev.filter((_, i) => i !== index));
+    toast({
+      title: "Success",
+      description: "Image removed successfully",
+    });
+  };
+
+  // Function to downscale an image
+  const downscaleImage = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          // Set maximum dimensions
+          const MAX_WIDTH = 1200;
+          const MAX_HEIGHT = 1200;
+          
+          let width = img.width;
+          let height = img.height;
+          
+          // Calculate new dimensions while maintaining aspect ratio
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+          
+          // Create canvas and draw downscaled image
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Convert back to file
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              reject(new Error('Canvas to Blob conversion failed'));
+              return;
+            }
+            
+            // Create new file with same name but downscaled
+            const newFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now()
+            });
+            
+            resolve(newFile);
+          }, 'image/jpeg', 0.85); // Compression quality
+        };
+        img.onerror = () => {
+          reject(new Error('Error loading image'));
+        };
+      };
+      reader.onerror = () => {
+        reject(new Error('Error reading file'));
+      };
+    });
   };
 
   const resetForm = () => {
@@ -299,22 +361,21 @@ export default function DocumentationPage() {
     setTags('');
     setVersion('1.0');
     setAttachments('');
+    setUploadedImages([]);
     setCurrentDocument(null);
   };
 
   const formatDate = (date: Date | Timestamp) => {
-    // Convert to Date if it's a Timestamp
-    const dateObj = date instanceof Date 
-      ? date 
-      : (date as any).toDate?.() || new Date();
-    
+    if (date instanceof Timestamp) {
+      date = date.toDate();
+    }
     return new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
-    }).format(dateObj);
+      minute: '2-digit',
+    }).format(date);
   };
 
   return (
@@ -386,12 +447,12 @@ export default function DocumentationPage() {
                       </Button>
                     </div>
                   </div>
-                  <CardDescription className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 text-sm text-muted-foreground">
                     <Badge variant="outline">{document.category}</Badge>
                     <div className="flex items-center mt-1">
                       <Badge variant="secondary" className="text-xs">v{document.version}</Badge>
                     </div>
-                  </CardDescription>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-3">
@@ -434,7 +495,7 @@ export default function DocumentationPage() {
                 : 'Fill in the details to create new documentation'}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+          <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto pr-2">
             <div className="grid grid-cols-4 items-center gap-4">
               <label htmlFor="title" className="text-right">
                 Title
@@ -474,7 +535,7 @@ export default function DocumentationPage() {
                 placeholder="e.g., router, configuration, network (comma separated)"
               />
             </div>
-            {isEditMode && (
+            {isEditMode ? (
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="version" className="text-right">
                   Version
@@ -491,19 +552,87 @@ export default function DocumentationPage() {
                   </span>
                 </div>
               </div>
+            ) : (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="version" className="text-right">
+                  Version
+                </label>
+                <div className="col-span-3 flex items-center">
+                  <Input
+                    id="version"
+                    value={version}
+                    onChange={(e) => setVersion(e.target.value)}
+                    className="w-24"
+                  />
+                  <span className="ml-2 text-sm text-gray-500">
+                    (Default: 1.0)
+                  </span>
+                </div>
+              </div>
             )}
             <div className="grid grid-cols-4 items-start gap-4">
-              <label htmlFor="content" className="text-right pt-2">
+              <label htmlFor="content" className="text-right font-medium pt-2">
                 Content
               </label>
-              <Textarea
-                id="content"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                className="col-span-3"
-                rows={12}
-                placeholder="Enter the documentation content..."
-              />
+              <div className="col-span-3 space-y-2">
+                <Textarea
+                  id="content"
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  className="min-h-[200px]"
+                  placeholder="Document content in markdown format"
+                />
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center space-x-2">
+                    <label
+                      htmlFor="image-upload"
+                      className={`flex cursor-pointer items-center rounded-md px-3 py-1 text-sm border border-input 
+                                hover:bg-accent hover:text-accent-foreground
+                                ${uploadingImage ? 'opacity-50 cursor-wait' : ''}`}
+                    >
+                      <Upload className="mr-2 h-4 w-4" />
+                      <span>Upload Image</span>
+                      <input
+                        id="image-upload"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleImageUpload}
+                        disabled={uploadingImage}
+                      />
+                    </label>
+                    {uploadingImage && <span className="text-xs text-muted-foreground">Uploading...</span>}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Images will be optimized automatically. Max size: 5MB
+                  </div>
+                </div>
+                
+                {/* Display uploaded images */}
+                {uploadedImages.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium mb-2">Uploaded Images:</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                      {uploadedImages.map((imageUrl, index) => (
+                        <div key={index} className="relative group border rounded p-1">
+                          <img 
+                            src={imageUrl} 
+                            alt={`Uploaded image ${index + 1}`}
+                            className="w-full h-32 object-cover rounded"
+                          />
+                          <button
+                            type="button"
+                            className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => handleRemoveImage(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-4 items-start gap-4">
               <label htmlFor="attachments" className="text-right pt-2">
@@ -542,7 +671,12 @@ export default function DocumentationPage() {
                 </div>
                 <DialogDescription>
                   <div className="flex flex-col gap-2 mt-2">
-                    <Badge variant="outline">{selectedDocument.category}</Badge>
+                    <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+                      <Badge variant="outline">{selectedDocument.category}</Badge>
+                      <div className="flex items-center mt-1">
+                        <Badge variant="secondary" className="text-xs">v{selectedDocument.version}</Badge>
+                      </div>
+                    </div>
                     <div className="flex items-center text-sm text-gray-500">
                       <User className="h-3 w-3 mr-1" />
                       {selectedDocument.author} | 
@@ -563,86 +697,49 @@ export default function DocumentationPage() {
                   </TabsList>
                   
                   <TabsContent value="content" className="pt-4">
-                    <div className="prose dark:prose-invert max-w-none">
-                      <div className="whitespace-pre-line">
+                    <div className="mb-4">
+                      <h3 className="text-lg font-medium mb-2">Content</h3>
+                      <div className="prose prose-sm max-w-none dark:prose-invert">
                         {selectedDocument.content}
                       </div>
-                      
-                      {selectedDocument.tags && selectedDocument.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-6 pt-4 border-t">
-                          <span className="text-sm font-medium mr-2">Tags:</span>
-                          {selectedDocument.tags.map((tag, index) => (
-                            <span key={index} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100">
-                              {tag}
-                            </span>
+                    </div>
+                    
+                    {/* Display document images */}
+                    {selectedDocument.imageUrls && selectedDocument.imageUrls.length > 0 && (
+                      <div className="mb-6">
+                        <h3 className="text-lg font-medium mb-2">Images</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {selectedDocument.imageUrls.map((imageUrl, index) => (
+                            <a 
+                              key={index} 
+                              href={imageUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="block border rounded p-1 hover:opacity-90 transition-opacity"
+                            >
+                              <img 
+                                src={imageUrl} 
+                                alt={`Document image ${index + 1}`}
+                                className="w-full h-40 object-cover rounded"
+                              />
+                            </a>
                           ))}
                         </div>
-                      )}
-                      
-                      {selectedDocument.attachments && selectedDocument.attachments.length > 0 && (
-                        <div className="mt-6 pt-4 border-t">
-                          <h3 className="text-lg font-medium mb-2">Attachments</h3>
-                          <ul className="space-y-2">
-                            {selectedDocument.attachments.map((attachment, index) => (
-                              <li key={index}>
-                                <a 
-                                  href={attachment} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:underline flex items-center"
-                                >
-                                  <FileText className="h-4 w-4 mr-1" />
-                                  {attachment.split('/').pop() || attachment}
-                                </a>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </TabsContent>
                   
                   <TabsContent value="history" className="pt-4">
-                    {versionHistory.length === 0 ? (
-                      <div className="text-center py-8">
-                        <History className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">No version history</h3>
-                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                          This document has not been updated yet
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {versionHistory.map((version, index) => (
-                          <Card key={index}>
-                            <CardHeader className="py-3">
-                              <div className="flex justify-between items-center">
-                                <CardTitle className="text-base">Version {version.version}</CardTitle>
-                                <Badge variant="outline" className="text-xs">
-                                  {formatDate(version.updatedAt)}
-                                </Badge>
-                              </div>
-                              <CardDescription className="text-xs">
-                                Updated by {version.author}
-                              </CardDescription>
-                            </CardHeader>
-                            <CardContent className="py-2">
-                              <div className="text-sm line-clamp-3">
-                                {version.content}
-                              </div>
-                            </CardContent>
-                            <CardFooter className="py-2">
-                              <Button variant="ghost" size="sm" onClick={() => {
-                                setSelectedDocument(version);
-                                setShowVersionHistory(false);
-                              }}>
-                                View this version
-                              </Button>
-                            </CardFooter>
-                          </Card>
-                        ))}
-                      </div>
-                    )}
+                    <div className="text-center py-8">
+                      <History className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Version History Feature</h3>
+                      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        The version history functionality is not available in the current Supabase implementation.
+                      </p>
+                      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        This feature will allow you to track changes to documentation over time.
+                      </p>
+                    </div>
                   </TabsContent>
                 </Tabs>
               </div>
@@ -654,6 +751,43 @@ export default function DocumentationPage() {
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Version History Information */}
+      <Dialog open={isDocumentDetailOpen && showVersionHistory} onOpenChange={(open) => {
+        if (!open) setShowVersionHistory(false);
+      }}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Version History</DialogTitle>
+            <DialogDescription>
+              Information about version history feature
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-6">
+            <div className="text-center">
+              <History className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                Feature in Development
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                The version history functionality is currently being developed for the Supabase implementation.
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                When complete, this feature will allow you to:
+              </p>
+              <ul className="text-sm text-gray-500 dark:text-gray-400 list-disc list-inside text-left mt-2 space-y-1">
+                <li>Track all changes made to documentation</li>
+                <li>View previous versions of documents</li>
+                <li>Compare changes between versions</li>
+                <li>Restore previous versions if needed</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowVersionHistory(false)}>Close</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

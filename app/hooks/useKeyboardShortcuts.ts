@@ -92,6 +92,13 @@ export function useDefaultShortcuts() {
       action: () => {
         router.push('/fault-locations');
       }
+    },
+    {
+      key: 'd',
+      ctrlKey: true,
+      action: () => {
+        router.push('/analytics-dashboard');
+      }
     }
   ];
 

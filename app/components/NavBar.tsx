@@ -132,7 +132,7 @@ export default function NavBar({ topOffset = '0px' }) {
 
   return (
     <nav 
-      className="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-dark-surface/95 backdrop-blur-sm border-b border-gray-200 dark:border-dark-border shadow-sm h-8" 
+      className="fixed top-0 left-0 right-0 z-[9999] bg-white dark:bg-dark-surface border-b border-gray-200 dark:border-dark-border shadow-md h-8" 
       style={{ top: topOffset }}
     >
       <div className="h-full flex items-center justify-between px-2">

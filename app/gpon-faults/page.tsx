@@ -9,6 +9,7 @@ import NavBar from '../components/NavBar';
 import { collection, addDoc, doc, getDoc, updateDoc, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebaseConfig';
 import { createGPONIncidents, GPONIncidentData, GPONFaultData } from '../services/incidentService';
+import { showNotification } from '../components/CustomNotification';
 
 interface FATEntry {
   id: string;
@@ -222,7 +223,7 @@ export default function GPONFaultsPage() {
       }
 
       setIncidentOutput(formattedMessage);
-      alert('GPON Faults Created Successfully!');
+      showNotification('GPON Faults Created Successfully!', { variant: 'success' });
 
       // Clear form
       setFaults([]);
@@ -232,7 +233,7 @@ export default function GPONFaultsPage() {
     } catch (error) {
       console.error('Error submitting the form:', error);
       setSubmissionError('There was an error submitting the form. Please try again.');
-      alert('There was an error submitting the form.');
+      showNotification('There was an error submitting the form.', { variant: 'error' });
     } finally {
       setIsSubmitting(false);
       // Re-enable the submit button
@@ -579,7 +580,7 @@ export default function GPONFaultsPage() {
                   className="btn btn-copy"
                   onClick={() => {
                     navigator.clipboard.writeText(incidentOutput);
-                    alert('Copied to clipboard!');
+                    showNotification('Copied to clipboard!', { variant: 'success' });
                   }}
                 >
                   <span>📋</span> Copy to Clipboard

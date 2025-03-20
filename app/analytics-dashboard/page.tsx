@@ -236,9 +236,9 @@ export default function AnalyticsDashboard() {
         
         <div className="flex justify-end mb-4">
           <Link href="/">
-            <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-md hover:from-blue-600 hover:to-indigo-700 transition-all shadow-md">
-              <Home size={18} />
-              <span>Back to Home</span>
+            <button className="btn btn-primary">
+              <span className="icon">🏠</span>
+              Back to Home
             </button>
           </Link>
         </div>
