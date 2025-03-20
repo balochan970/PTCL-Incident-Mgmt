@@ -1,11 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 import { BestPractice, Documentation, TroubleshootingGuide } from '@/app/knowledgebase/types';
-
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { SupabaseDocumentation, SupabaseTroubleshootingGuide, SupabaseBestPractice } from '@/app/knowledgebase/supabase-types';
+import { supabase } from './supabaseConfig';
 
 // Documentation service
 export const documentationService = {
@@ -20,8 +16,8 @@ export const documentationService = {
       throw error;
     }
     
-    return data.map(doc => ({
-      id: doc.id,
+    return data.map((doc: SupabaseDocumentation) => ({
+      id: doc.id || '',
       title: doc.title,
       content: doc.content,
       category: doc.category,
@@ -29,8 +25,8 @@ export const documentationService = {
       imageUrl: doc.image_url,
       imageUrls: doc.image_urls || [],
       author: doc.author,
-      createdAt: new Date(doc.created_at),
-      updatedAt: new Date(doc.updated_at),
+      createdAt: doc.created_at ? new Date(doc.created_at) : new Date(),
+      updatedAt: doc.updated_at ? new Date(doc.updated_at) : new Date(),
       version: doc.version || '1.0',
       attachments: doc.attachments || [],
       parentId: doc.parent_id,
@@ -59,8 +55,8 @@ export const documentationService = {
       imageUrl: data.image_url,
       imageUrls: data.image_urls || [],
       author: data.author,
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
+      createdAt: data.created_at ? new Date(data.created_at) : new Date(),
+      updatedAt: data.updated_at ? new Date(data.updated_at) : new Date(),
       version: data.version || '1.0',
       attachments: data.attachments || [],
       parentId: data.parent_id,
@@ -160,8 +156,8 @@ export const troubleshootingService = {
     
     console.log('Raw data from Supabase:', data);
     
-    return data.map(guide => ({
-      id: guide.id,
+    return data.map((guide: SupabaseTroubleshootingGuide) => ({
+      id: guide.id || '',
       title: guide.title,
       problem: guide.problem,
       symptoms: guide.symptoms || [],
@@ -181,8 +177,8 @@ export const troubleshootingService = {
       author: guide.author,
       rating: guide.rating || 0,
       ratingCount: guide.rating_count || 0,
-      createdAt: new Date(guide.created_at),
-      updatedAt: new Date(guide.updated_at),
+      createdAt: guide.created_at ? new Date(guide.created_at) : new Date(),
+      updatedAt: guide.updated_at ? new Date(guide.updated_at) : new Date(),
     }));
   },
   
@@ -216,8 +212,8 @@ export const troubleshootingService = {
       author: data.author,
       rating: data.rating || 0,
       ratingCount: data.rating_count || 0,
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
+      createdAt: data.created_at ? new Date(data.created_at) : new Date(),
+      updatedAt: data.updated_at ? new Date(data.updated_at) : new Date(),
     };
   },
   
@@ -304,19 +300,19 @@ export const bestPracticesService = {
       throw error;
     }
     
-    return data.map(practice => ({
-      id: practice.id,
+    return data.map((practice: SupabaseBestPractice) => ({
+      id: practice.id || '',
       title: practice.title,
       category: practice.category,
-      description: practice.description,
-      recommendations: practice.recommendations || [],
-      benefitsAndOutcomes: practice.benefits_and_outcomes || [],
+      description: practice.content,
+      recommendations: practice.examples || [],
+      benefitsAndOutcomes: [],
       author: practice.author,
-      likes: practice.likes || 0,
-      dislikes: practice.dislikes || 0,
-      imageUrls: practice.image_urls || [],
-      createdAt: new Date(practice.created_at),
-      updatedAt: new Date(practice.updated_at),
+      createdAt: practice.created_at ? new Date(practice.created_at) : new Date(),
+      updatedAt: practice.updated_at ? new Date(practice.updated_at) : new Date(),
+      likes: practice.rating || 0,
+      dislikes: 0,
+      imageUrls: practice.image_urls || []
     }));
   },
   
@@ -336,15 +332,15 @@ export const bestPracticesService = {
       id: data.id,
       title: data.title,
       category: data.category,
-      description: data.description,
-      recommendations: data.recommendations || [],
-      benefitsAndOutcomes: data.benefits_and_outcomes || [],
+      description: data.content,
+      recommendations: data.examples || [],
+      benefitsAndOutcomes: [],
       author: data.author,
-      likes: data.likes || 0,
-      dislikes: data.dislikes || 0,
-      imageUrls: data.image_urls || [],
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
+      createdAt: data.created_at ? new Date(data.created_at) : new Date(),
+      updatedAt: data.updated_at ? new Date(data.updated_at) : new Date(),
+      likes: data.rating || 0,
+      dislikes: 0,
+      imageUrls: data.image_urls || []
     };
   },
   
@@ -390,10 +386,10 @@ export const bestPracticesService = {
     
     if (practice.title !== undefined) updateData.title = practice.title;
     if (practice.category !== undefined) updateData.category = practice.category;
-    if (practice.description !== undefined) updateData.description = practice.description;
-    if (practice.recommendations !== undefined) updateData.recommendations = practice.recommendations;
+    if (practice.description !== undefined) updateData.content = practice.description;
+    if (practice.recommendations !== undefined) updateData.examples = practice.recommendations;
     if (practice.benefitsAndOutcomes !== undefined) updateData.benefits_and_outcomes = practice.benefitsAndOutcomes;
-    if (practice.likes !== undefined) updateData.likes = practice.likes;
+    if (practice.likes !== undefined) updateData.rating = practice.likes;
     if (practice.dislikes !== undefined) updateData.dislikes = practice.dislikes;
     if (practice.imageUrls !== undefined) updateData.image_urls = practice.imageUrls;
     

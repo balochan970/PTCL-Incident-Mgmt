@@ -1,5 +1,4 @@
 import { v4 as uuidv4 } from 'uuid';
-import { createClient } from '@supabase/supabase-js';
 import { 
   Message, 
   ShortTermMemory, 
@@ -10,11 +9,7 @@ import {
   ContextualMemory,
   MemoryManager
 } from './types';
-
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { supabase } from '../../../lib/supabaseConfig';
 
 export class SupabaseMemoryManager implements MemoryManager {
   // Table names
@@ -182,20 +177,28 @@ export class SupabaseMemoryManager implements MemoryManager {
   }
 
   async getRecentEpisodes(userId: string, limit: number = 5): Promise<Episode[]> {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from(this.EPISODIC_TABLE)
       .select('*')
-      .eq('userId', userId)
-      .order('startTime', { ascending: false })
+      .eq('user_id', userId)
+      .order('start_time', { ascending: false })
       .limit(limit);
-
+    
+    if (error) {
+      console.error('Error fetching recent episodes:', error);
+      return [];
+    }
+    
     if (!data) return [];
-
-    return data.map(episode => ({
+    
+    return data.map((episode: any) => ({
       ...episode,
       startTime: new Date(episode.startTime),
-      endTime: episode.endTime ? new Date(episode.endTime) : undefined
-    })) as Episode[];
+      endTime: episode.endTime ? new Date(episode.endTime) : undefined,
+      messages: episode.messages || [],
+      relatedIncidents: episode.related_incidents || [],
+      topics: episode.topics || []
+    }));
   }
 
   // Contextual Memory Implementation
